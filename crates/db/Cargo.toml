@@ -1,0 +1,11 @@
+[package]
+name = "imkitchen-db"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+sqlx.workspace = true
+sqlx_migrator.workspace = true
+tracing.workspace = true

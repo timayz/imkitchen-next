@@ -1,0 +1,63 @@
+[workspace]
+resolver = "3"
+members = [
+    "cli",
+    "crates/common",
+    "crates/db",
+    "web/server",
+    "admin/server",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/timayz/imkitchen-next"
+
+[workspace.dependencies]
+axum = "0.8.9"
+axum-extra = { version = "0.12", features = ["cookie"] }
+askama = "0.16.0"
+evento = "2.0.0-alpha.15"
+lightningcss = "1.0.0-alpha.71"
+mime_guess = "2.0.5"
+minify-html = "0.18.1"
+oxc = { version = "0.132.0", features = ["minifier", "codegen"] }
+rust-embed = "8.11.0"
+sqlx = { version = "=0.8.6", features = ["runtime-tokio", "sqlite"] }
+sqlx_migrator = { version = "0.18", features = ["sqlite"] }
+clap = { version = "4.6.1", features = ["derive"] }
+config = "0.15.23"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tokio-util = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "compression-br", "compression-gzip", "timeout", "catch-panic", "sensitive-headers", "limit"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.dev.package.oxc]
+opt-level = 3
+
+[profile.dev.package.lightningcss]
+opt-level = 3
+
+[profile.dev.package.minify-html]
+opt-level = 3
+
+[profile.dev.build-override]
+debug = false
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+debug = false

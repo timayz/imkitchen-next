@@ -1,0 +1,25 @@
+/target
+Cargo.lock
+.DS_Store
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Env
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Node
+node_modules/
+
+# Nix / direnv
+.direnv/
+result
+result-*
