@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Recipes — imkitchen{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen">
+
+  {% include "_side_rail.html" %}
+
+  {# ── Main column ────────────────────────────────────────────────────── #}
+  <main id="main" class="flex min-w-0 flex-1 flex-col">
+
+    {# ── Top bar ─────────────────────────────────────────────────────── #}
+    <div class="sticky top-0 z-10 border-b border-[var(--color-line-2)] bg-[var(--color-cream)]/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-10 lg:py-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+        <div class="min-w-0">
+          <p class="text-[11px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+            Library · {{ total_count }} recipes
+          </p>
+          <h1 class="mt-1 text-3xl leading-none tracking-tight text-[var(--color-ink)] sm:text-4xl" style="font-family: var(--font-serif);">
+            Your recipes
+          </h1>
+        </div>
+
+        <div class="lg:flex-1"></div>
+
+        <form action="/recipes" method="get" role="search" class="flex h-11 max-w-md items-center gap-2.5 rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] px-3.5 focus-within:ring-2 focus-within:ring-[var(--color-tangerine)]">
+          {# Preserve filter + view so submitting the search (or hot-swapping #}
+          {# via TwinSpark) doesn't drop them. #}
+          {% if current_filter != "all" %}<input type="hidden" name="filter" value="{{ current_filter }}">{% endif %}
+          {% if current_view != "grid" %}<input type="hidden" name="view" value="{{ current_view }}">{% endif %}
+          <label for="recipe-search" class="sr-only">Search recipes</label>
+          <svg class="h-4 w-4 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="recipe-search" type="search" name="q" value="{{ current_q }}" placeholder="Search by name, cuisine, tag…"
+                 class="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] focus:outline-none"
+                 ts-req="/recipes"
+                 ts-trigger="input changed delay:300ms"
+                 ts-target="#recipes-grid"
+                 ts-req-strategy="last"
+                 ts-req-history="push">
+          <kbd aria-hidden="true" class="rounded-md border border-[var(--color-line-2)] px-1.5 py-0.5 text-[10px] text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">⌘ K</kbd>
+        </form>
+
+        <div class="flex items-center gap-2">
+          {% include "recipes/_view_toggle.html" %}
+
+          <a href="/recipes/import"
+             class="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-line-2)] bg-[var(--color-paper)] px-3.5 text-sm font-semibold text-[var(--color-ink)] hover:border-[var(--color-ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+            <span>Import</span>
+          </a>
+
+          <a href="/recipes/new"
+             class="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span>New recipe</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# ── Body ────────────────────────────────────────────────────────── #}
+    {# Reserve room for the fixed mobile bottom bar (h-14 = 56px + iOS safe area). #}
+    {# md:pb-7 drops back to normal padding once the rail takes over at md+.       #}
+    <div class="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:pt-7 md:pb-7 lg:px-10">
+
+      {# Filter row #}
+      <div class="mb-5 flex flex-wrap items-center gap-3">
+        {% include "recipes/_filter_chips.html" %}
+
+        <div class="ml-auto text-xs tracking-wide text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">
+          Sort · <span class="text-[var(--color-ink)] uppercase">Recently added</span>
+        </div>
+      </div>
+
+      {# Grid/list — main TwinSpark target. The view-toggle + filter-chips    #}
+      {# partials carry `ts-swap-push` so they update via out-of-band swap    #}
+      {# whenever this section reloads (filter / view / search).              #}
+      {% include "recipes/_grid.html" %}
+
+    </div>
+  </main>
+</div>
+
+{% include "_mobile_nav.html" %}
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Recipe not found — imkitchen{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen">
+
+  {% include "_side_rail.html" %}
+
+  <main id="main" class="flex min-w-0 flex-1 flex-col">
+
+    <div class="sticky top-0 z-10 border-b border-[var(--color-line-2)] bg-[var(--color-cream)]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10 lg:py-4">
+      <div class="flex items-center gap-3 sm:gap-4">
+        <a href="/recipes"
+           aria-label="Back to recipes"
+           class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6"/>
+          </svg>
+        </a>
+        <nav aria-label="Breadcrumb" class="min-w-0 flex-1">
+          <p class="text-[11px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+            <a href="/recipes" class="hover:text-[var(--color-ink)] focus:outline-none focus-visible:underline">Recipes</a>
+            <span aria-hidden="true">·</span>
+            <span>not found</span>
+          </p>
+          <p class="mt-0.5 truncate text-sm font-semibold text-[var(--color-ink)] sm:text-base">
+            Recipe not found
+          </p>
+        </nav>
+      </div>
+    </div>
+
+    <div class="mx-auto w-full max-w-[640px] px-4 pt-10 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-16 sm:pb-12 md:pb-12 lg:px-10">
+      <div class="rounded-3xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)] p-8 text-center sm:p-12">
+        <span aria-hidden="true" class="text-6xl">🍽️</span>
+        <h1 class="mt-4 text-3xl leading-tight tracking-tight text-[var(--color-ink)] sm:text-4xl" style="font-family: var(--font-serif);">
+          We can't find that recipe
+        </h1>
+        <p class="mt-3 text-sm text-[var(--color-ink-2)] sm:text-base">
+          No recipe with id <code class="rounded bg-[var(--color-cream-2)] px-1.5 py-0.5 text-[13px] text-[var(--color-ink)]" style="font-family: var(--font-mono);">{{ requested_id }}</code> is in the library.
+          It may have been removed, or the link may be wrong.
+        </p>
+        <a href="/recipes" class="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-5 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          <span>Back to library</span>
+        </a>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include "_mobile_nav.html" %}
+{% endblock %}

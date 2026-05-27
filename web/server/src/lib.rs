@@ -1,5 +1,8 @@
 mod assets;
 mod auth;
+mod recipes;
+mod recipes_create;
+mod recipes_import;
 
 use std::time::Duration;
 
@@ -46,6 +49,24 @@ pub fn router(state: AppState) -> Router {
 
     Router::new()
         .route("/", get(index))
+        .route("/recipes", get(recipes::recipes_index))
+        .route(
+            "/recipes/new",
+            get(recipes_create::create_form).post(recipes_create::create_submit),
+        )
+        .route(
+            "/recipes/new/ingredient-row",
+            get(recipes_create::ingredient_row_fragment),
+        )
+        .route(
+            "/recipes/new/step-row",
+            get(recipes_create::step_row_fragment),
+        )
+        .route(
+            "/recipes/import",
+            get(recipes_import::import_page).post(recipes_import::import_submit),
+        )
+        .route("/recipes/{id}", get(recipes::recipe_detail))
         .route("/share-recipe", get(share_recipe))
         .route("/premium", get(premium_only))
         .route("/login", get(auth::login_page).post(auth::login_submit))

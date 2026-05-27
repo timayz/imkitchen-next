@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Import recipes — imkitchen{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen">
+
+  {% include "_side_rail.html" %}
+
+  <main id="main" class="flex min-w-0 flex-1 flex-col">
+
+    {# ── Top bar — back + breadcrumb + step pill ─────────────────────── #}
+    <div class="sticky top-0 z-10 border-b border-[var(--color-line-2)] bg-[var(--color-cream)]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10 lg:py-4">
+      <div class="flex items-center gap-3 sm:gap-4">
+        <a href="/recipes"
+           aria-label="Back to recipes"
+           class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6l-12 12"/>
+          </svg>
+        </a>
+
+        <nav aria-label="Breadcrumb" class="min-w-0 flex-1">
+          <p class="text-[11px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+            <a href="/recipes" class="hover:text-[var(--color-ink)] focus:outline-none focus-visible:underline">Recipes</a>
+            <span aria-hidden="true">·</span>
+            <span>Import{% if stage == "done" %} · complete{% endif %}</span>
+          </p>
+          <p class="mt-0.5 truncate text-sm font-semibold text-[var(--color-ink)] sm:text-base">
+            {% if stage == "upload" %}Bring recipes in
+            {% else if stage == "preview" %}Review what we found
+            {% else %}Imported successfully
+            {% endif %}
+          </p>
+        </nav>
+
+        {# Step indicator — hidden on the smallest viewports, surfaced from sm+. #}
+        <ol role="list" aria-label="Import progress" class="hidden items-center gap-3 rounded-full border border-[var(--color-line-2)] bg-[var(--color-paper)] px-3 py-1.5 sm:flex">
+          {% for s in steps %}
+          <li class="flex items-center gap-1.5"
+              {% if s.active %}aria-current="step"{% endif %}>
+            <span aria-hidden="true"
+                  class="grid h-5 w-5 place-items-center rounded-full text-[11px] font-semibold {% if s.active %}bg-[var(--color-tangerine)] text-white{% else if s.done %}bg-[var(--color-herb-soft)] text-[var(--color-herb-ink)]{% else %}bg-[var(--color-cream-2)] text-[var(--color-ink-3)]{% endif %}"
+                  style="font-family: var(--font-mono);">{{ loop.index }}</span>
+            <span class="text-xs font-semibold {% if s.active %}text-[var(--color-ink)]{% else %}text-[var(--color-ink-3)]{% endif %}">{{ s.label }}</span>
+            {% if !loop.last %}<span aria-hidden="true" class="h-px w-4 bg-[var(--color-line-2)]"></span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+
+      {# Live-region: announces the current stage to screen readers on any        #}
+      {# server-rendered transition. Visually hidden — the step pill above is the #}
+      {# sighted equivalent.                                                     #}
+      <p role="status" aria-live="polite" class="sr-only">
+        {% if stage == "upload" %}Stage one of three: choose a source.
+        {% else if stage == "preview" %}Stage two of three: review and pick recipes to import.
+        {% else %}Stage three of three: import complete.
+        {% endif %}
+      </p>
+    </div>
+
+    {# ── Body ───────────────────────────────────────────────────────── #}
+    <div class="mx-auto w-full max-w-[760px] px-4 pt-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-10 md:pb-10 lg:px-10">
+
+      {% if stage == "upload" %}
+        {% include "recipes/_import_upload.html" %}
+      {% else if stage == "preview" %}
+        {% include "recipes/_import_preview.html" %}
+      {% else %}
+        {% include "recipes/_import_done.html" %}
+      {% endif %}
+    </div>
+  </main>
+</div>
+
+{% include "_mobile_nav.html" %}
+{% endblock %}

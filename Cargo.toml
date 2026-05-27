@@ -27,6 +27,7 @@ sqlx = { version = "=0.8.6", features = ["runtime-tokio", "sqlite"] }
 sqlx_migrator = { version = "0.18", features = ["sqlite"] }
 clap = { version = "4.6.1", features = ["derive"] }
 config = "0.15.23"
+form_urlencoded = "1.2"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 tokio-util = "0.7"

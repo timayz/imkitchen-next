@@ -1,0 +1,47 @@
+{# One step row. Used for the initial render AND as the TwinSpark fragment    #}
+{# response for "Add step". The row class `.step-row` is the remove target.    #}
+{#                                                                             #}
+{# Inputs:                                                                      #}
+{#  step.minutes: u32        — active minutes (informational)                   #}
+{#  step.text: &str          — instruction body                                 #}
+{#  row_id: &str             — unique suffix for labels and error IDs          #}
+{#  err_text: Option<&str>   — per-row validation error                       #}
+<article class="step-row rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-3 shadow-sm sm:p-4">
+  <div class="flex items-start gap-3">
+    <span aria-hidden="true" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--color-tangerine-soft)] text-base text-[var(--color-tangerine-ink)]" style="font-family: var(--font-serif);">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    </span>
+
+    <div class="min-w-0 flex-1">
+      <label class="sr-only" for="step-text-{{ row_id }}">Step instructions</label>
+      <textarea id="step-text-{{ row_id }}" name="step_text" rows="2"
+                placeholder="Describe this step…"
+                {% if err_text.is_some() %}aria-invalid="true" aria-describedby="step-text-err-{{ row_id }}"{% endif %}
+                class="block w-full resize-y rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-2.5 py-2 text-[13px] leading-relaxed text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none">{{ step.text }}</textarea>
+      {% if let Some(msg) = err_text %}
+      <p id="step-text-err-{{ row_id }}" class="mt-1 text-[11px] text-[var(--color-tangerine-ink)]">{{ msg }}</p>
+      {% endif %}
+
+      <div class="mt-2 flex items-center gap-2">
+        <svg class="h-3 w-3 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <label class="sr-only" for="step-min-{{ row_id }}">Active minutes</label>
+        <input id="step-min-{{ row_id }}" type="number" name="step_min" value="{{ step.minutes }}" min="1" max="600" inputmode="numeric"
+               class="w-16 rounded-md border border-[var(--color-line)] bg-[var(--color-cream)] px-2 py-1 text-[12px] text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none"
+               style="font-family: var(--font-mono);">
+        <span class="text-[11px] text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">min</span>
+
+        <div class="flex-1"></div>
+
+        <button type="button"
+                aria-label="Remove step"
+                ts-target="parent .step-row"
+                ts-action="remove"
+                class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--color-ink-3)] hover:bg-[var(--color-cream-2)] hover:text-[var(--color-ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</article>
