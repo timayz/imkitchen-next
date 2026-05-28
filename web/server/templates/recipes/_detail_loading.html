@@ -1,0 +1,50 @@
+{# Loading shell rendered while the projection catches up after a recipe is #}
+{# created. Polls /recipes/{id} every 300ms via twinspark; the response      #}
+{# replaces this shell with the real detail page once the row appears in    #}
+{# `recipes_view`. After ATTEMPT_LIMIT polls (~5s) we render the "still      #}
+{# working" branch instead of looping — the shell stays put without a       #}
+{# trigger and the user can refresh manually.                                #}
+{#                                                                          #}
+{# Outer wrapper carries a stable `id` so twinspark's settling pass can     #}
+{# transition between attempts cleanly.                                     #}
+<section id="recipe-loading-shell"
+         {% if attempt < attempt_limit %}
+         ts-req="/recipes/{{ recipe_id }}?awaiting=1&attempt={{ attempt + 1 }}"
+         ts-trigger="load delay:300ms"
+         {% endif %}
+         aria-busy="true"
+         aria-live="polite"
+         class="mx-auto w-full max-w-[1200px] px-4 pt-10 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-12 lg:px-10">
+
+  {% if attempt < attempt_limit %}
+    <div class="flex flex-col items-center text-center">
+      <span aria-hidden="true"
+            class="grid h-16 w-16 place-items-center rounded-2xl bg-[var(--color-paper)] text-[var(--color-tangerine)] shadow-sm">
+        <svg class="h-7 w-7 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3a9 9 0 1 0 9 9"/>
+        </svg>
+      </span>
+      <h1 tabindex="-1" class="mt-5 text-2xl tracking-tight text-[var(--color-ink)] sm:text-3xl" style="font-family: var(--font-serif);">
+        Saving your recipe…
+      </h1>
+      <p class="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-ink-2)]">
+        We're updating your library. This usually takes about a second.
+      </p>
+    </div>
+  {% else %}
+    <div role="alert" class="mx-auto max-w-md rounded-2xl border border-[var(--color-tangerine)]/40 bg-[var(--color-tangerine-soft)] p-5 text-[var(--color-tangerine-ink)]">
+      <h1 tabindex="-1" class="text-lg font-semibold" style="font-family: var(--font-serif);">
+        Still working on it.
+      </h1>
+      <p class="mt-2 text-sm">
+        Your recipe was saved but hasn't shown up in the library yet. Refresh in a moment.
+      </p>
+      <p class="mt-4">
+        <a href="/recipes/{{ recipe_id }}"
+           class="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+          Try again
+        </a>
+      </p>
+    </div>
+  {% endif %}
+</section>

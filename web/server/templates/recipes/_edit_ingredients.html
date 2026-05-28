@@ -1,0 +1,59 @@
+{# Replaces the whole ingredient list. Re-uses `_ing_row.html` so the row     #}
+{# shape stays identical to the create form. The "Add ingredient" button     #}
+{# inserts a fresh blank row before the marker via TwinSpark, same as create. #}
+{# Inputs:                                                                    #}
+{#   recipe_id: &str                                                          #}
+{#   ingredient_rows: Vec<IngredientRow>     — current ingredient list rows   #}
+{#   summary_err: Option<&str>               — "at least one ingredient"      #}
+{#   saved: bool                                                              #}
+<section id="edit-ingredients" aria-labelledby="edit-ingredients-heading">
+  <div class="mb-3 flex items-center justify-between">
+    <h2 id="edit-ingredients-heading" class="text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+      Ingredients <span class="text-[var(--color-tangerine-ink)]" aria-hidden="true">*</span>
+    </h2>
+  </div>
+
+  <form action="/recipes/{{ recipe_id }}/ingredients" method="post"
+        ts-req="/recipes/{{ recipe_id }}/ingredients"
+        ts-target="#edit-ingredients"
+        class="rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-3 shadow-sm sm:p-4">
+    {% if let Some(msg) = summary_err %}
+    <p role="alert" class="mb-3 rounded-lg border border-[var(--color-tangerine)]/40 bg-[var(--color-tangerine-soft)] px-3 py-2 text-[12px] text-[var(--color-tangerine-ink)]">{{ msg }}</p>
+    {% endif %}
+
+    <div id="ing-list-edit" class="flex flex-col">
+      {% for row in ingredient_rows %}
+        {% let ing = row.ing %}
+        {% let row_id = row.row_id.as_str() %}
+        {% let unit_options = row.unit_options %}
+        {% let err_quantity = row.err_quantity.as_deref() %}
+        {% let err_name = row.err_name.as_deref() %}
+        {% include "recipes/_ing_row.html" %}
+      {% endfor %}
+
+      {# Sentinel so the add-row button inserts at the bottom of the list. #}
+      <div id="edit-ing-marker" aria-hidden="true"></div>
+    </div>
+
+    <button type="button"
+            aria-label="Add ingredient"
+            ts-req="/recipes/new/ingredient-row"
+            ts-target="#edit-ing-marker"
+            ts-swap="beforebegin"
+            ts-req-strategy="queue"
+            class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-line)] bg-transparent px-3 py-2.5 text-[13px] font-medium text-[var(--color-ink-2)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Add ingredient</span>
+    </button>
+
+    <div class="mt-4 flex items-center gap-3">
+      <button type="submit"
+              class="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-cream)] hover:bg-[var(--color-ink)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+        Save ingredients
+      </button>
+      {% if saved %}
+      <span role="status" class="text-[12px] text-[var(--color-herb-ink)]">Saved.</span>
+      {% endif %}
+    </div>
+  </form>
+</section>

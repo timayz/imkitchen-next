@@ -2,7 +2,7 @@
 {# response for "Add step". The row class `.step-row` is the remove target.    #}
 {#                                                                             #}
 {# Inputs:                                                                      #}
-{#  step.minutes: u32        — active minutes (informational)                   #}
+{#  step.wait_minutes: u32   — wait before next step in minutes (0 = none)      #}
 {#  step.text: &str          — instruction body                                 #}
 {#  row_id: &str             — unique suffix for labels and error IDs          #}
 {#  err_text: Option<&str>   — per-row validation error                       #}
@@ -24,11 +24,11 @@
 
       <div class="mt-2 flex items-center gap-2">
         <svg class="h-3 w-3 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <label class="sr-only" for="step-min-{{ row_id }}">Active minutes</label>
-        <input id="step-min-{{ row_id }}" type="number" name="step_min" value="{{ step.minutes }}" min="1" max="600" inputmode="numeric"
+        <label class="sr-only" for="step-min-{{ row_id }}">Wait before next step (minutes)</label>
+        <input id="step-min-{{ row_id }}" type="number" name="step_min" value="{{ step.wait_minutes }}" min="0" max="600" inputmode="numeric"
                class="w-16 rounded-md border border-[var(--color-line)] bg-[var(--color-cream)] px-2 py-1 text-[12px] text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none"
                style="font-family: var(--font-mono);">
-        <span class="text-[11px] text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">min</span>
+        <span class="text-[11px] text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">min wait</span>
 
         <div class="flex-1"></div>
 

@@ -1,0 +1,37 @@
+{# Title section. Single root <section> so the POST response can replace it #}
+{# in place via TwinSpark.                                                    #}
+{# Inputs:                                                                    #}
+{#   recipe_id: &str                                                          #}
+{#   title: &str                                                              #}
+{#   err: Option<&str>                                                        #}
+{#   saved: bool                — render "Saved" status after a POST          #}
+<section id="edit-title" aria-labelledby="edit-title-heading">
+  <h2 id="edit-title-heading" class="mb-3 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+    Name
+  </h2>
+  <form action="/recipes/{{ recipe_id }}/title" method="post"
+        ts-req="/recipes/{{ recipe_id }}/title"
+        ts-target="#edit-title"
+        class="rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-4 shadow-sm sm:p-5">
+    <label for="r-title" class="mb-1.5 block text-[11px] font-medium text-[var(--color-ink-2)]">
+      Recipe name <span class="text-[var(--color-tangerine-ink)]" aria-hidden="true">*</span>
+    </label>
+    <input id="r-title" type="text" name="title" value="{{ title }}"
+           required aria-required="true"
+           {% if err.is_some() %}aria-invalid="true" aria-describedby="r-title-err"{% endif %}
+           placeholder="e.g. Lentil Shepherd's Pie"
+           class="block w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 text-sm text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none">
+    {% if let Some(msg) = err %}
+    <p id="r-title-err" class="mt-1 text-[11px] text-[var(--color-tangerine-ink)]">{{ msg }}</p>
+    {% endif %}
+    <div class="mt-3 flex items-center gap-3">
+      <button type="submit"
+              class="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-cream)] hover:bg-[var(--color-ink)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+        Save name
+      </button>
+      {% if saved %}
+      <span role="status" class="text-[12px] text-[var(--color-herb-ink)]">Saved.</span>
+      {% endif %}
+    </div>
+  </form>
+</section>

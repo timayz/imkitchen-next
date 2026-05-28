@@ -33,6 +33,18 @@
 
         {# Actions visible on tablet+; phones get a "Start cooking" CTA at the bottom of the page. #}
         <div class="hidden items-center gap-2 sm:flex">
+          {# Edit link — owner-only. The route handler already 404s for      #}
+          {# non-owners, so reaching this template implies the viewer owns   #}
+          {# the recipe and the link is always safe to render. The `can_edit` #}
+          {# flag exists as a future hook for view-but-not-edit (e.g., a     #}
+          {# shared catalog).                                                 #}
+          {% if can_edit %}
+          <a href="/recipes/{{ recipe.id }}/edit"
+             class="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3 text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>
+            <span>Edit</span>
+          </a>
+          {% endif %}
           <button type="button"
                   aria-pressed="true"
                   class="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 text-sm font-semibold text-[var(--color-cream)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
@@ -140,7 +152,7 @@
                 <li class="flex items-center gap-3 px-3.5 py-2.5">
                   <span aria-hidden="true" class="h-5 w-5 shrink-0 rounded-md border-[1.5px] border-[var(--color-line)] bg-[var(--color-cream)]"></span>
                   <span class="flex-1 text-[14px] text-[var(--color-ink)]">{{ ing.name }}</span>
-                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.qty }}</span>
+                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.display_qty() }}</span>
                 </li>
                 {% endfor %}
               </ul>
@@ -168,10 +180,12 @@
                       <span class="sr-only">Step {{ loop.index }} of {{ recipe.total_steps() }}.</span>
                       {{ step.text }}
                     </p>
+                    {% if step.wait_minutes > 0 %}
                     <p class="mt-2 flex items-center gap-1.5 text-[11px] tracking-wide text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
                       <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                      <span><span class="sr-only">about </span>{{ step.minutes }} min</span>
+                      <span>wait <span class="sr-only">about </span>{{ step.wait_minutes }} min</span>
                     </p>
+                    {% endif %}
                   </div>
                 </div>
               </li>
@@ -214,7 +228,7 @@
                 <li class="flex items-center gap-3 py-2.5">
                   <span aria-hidden="true" class="h-5 w-5 shrink-0 rounded-md border-[1.5px] border-[var(--color-line)] bg-[var(--color-cream)]"></span>
                   <span class="flex-1 text-[14px] text-[var(--color-ink)]">{{ ing.name }}</span>
-                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.qty }}</span>
+                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.display_qty() }}</span>
                 </li>
                 {% endfor %}
               </ul>

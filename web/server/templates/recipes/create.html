@@ -208,7 +208,8 @@
               {% for row in ingredient_rows %}
                 {% let ing = row.ing %}
                 {% let row_id = row.row_id.as_str() %}
-                {% let err_qty = row.err_qty.as_deref() %}
+                {% let unit_options = row.unit_options %}
+                {% let err_quantity = row.err_quantity.as_deref() %}
                 {% let err_name = row.err_name.as_deref() %}
                 {% include "recipes/_ing_row.html" %}
               {% endfor %}

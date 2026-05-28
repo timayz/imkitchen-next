@@ -5,27 +5,41 @@
 //! GET /recipes/new/ingredient-row      → one blank ingredient row (TwinSpark)
 //! GET /recipes/new/step-row            → one blank step row (TwinSpark)
 //!
-//! TODO: persistence is stubbed — on success we 303 to `/recipes` without
-//! writing anything. Replace with a write-side command once evento read/write
-//! models for recipes exist.
+//! On success the handler dispatches a `DraftRecipe` command through evento
+//! and redirects to `/recipes/{new_id}?awaiting=1`. The detail handler reads
+//! from the `recipes_view` projection, which is updated asynchronously by a
+//! subscription. When `awaiting=1` is set and the row isn't there yet, the
+//! detail handler renders a loading shell that polls every 300 ms via
+//! TwinSpark (`ts-trigger="load delay:300ms"`); once the projection catches
+//! up, the poll's partial response carries a `ts-location` header that the
+//! client uses to do a full navigation to the clean `/recipes/{id}` URL.
+//! After ~5 s of polling the shell renders a terminal "still working"
+//! panel with no trigger, so it stops looping.
 //!
 //! Form encoding: standard `application/x-www-form-urlencoded`. Ingredient and
-//! step rows are sent as repeated keys (`ing_qty=…&ing_name=…&ing_qty=…`); we
-//! parse the body manually with `form_urlencoded` because `axum::Form` (and the
-//! underlying `serde_urlencoded`) does not accept repeated keys for `Vec<T>`.
+//! step rows are sent as repeated keys (`ing_quantity=…&ing_unit=…&ing_name=…`
+//! per row); we parse the body manually with `form_urlencoded` because
+//! `axum::Form` (and the underlying `serde_urlencoded`) does not accept
+//! repeated keys for `Vec<T>`.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use askama::Template;
 use axum::{
     body::Bytes,
+    extract::State,
     http::StatusCode,
     response::{Html, IntoResponse, Redirect, Response},
 };
+use imkitchen_recipes::recipe::{
+    DraftRecipe, IngredientFact as DomainIngredient, MealType, Provenance, StepFact as DomainStep,
+    Unit, draft_recipe,
+};
 
 use crate::{
+    AppState,
     auth::{Role, User},
-    recipes::NavItem,
+    recipes::{NavItem, owner_id},
 };
 
 // ── Static option sets ──────────────────────────────────────────────────
@@ -73,7 +87,7 @@ const TAG_VARIANTS: &[&str] = &[
     "Spicy",
 ];
 
-fn meal_type_options(active_slug: &str) -> Vec<MealTypeOption> {
+pub(crate) fn meal_type_options(active_slug: &str) -> Vec<MealTypeOption> {
     MEAL_TYPE_VARIANTS
         .iter()
         .map(|(slug, label, emoji)| MealTypeOption {
@@ -85,7 +99,7 @@ fn meal_type_options(active_slug: &str) -> Vec<MealTypeOption> {
         .collect()
 }
 
-fn difficulty_options(active: &str) -> Vec<DifficultyOption> {
+pub(crate) fn difficulty_options(active: &str) -> Vec<DifficultyOption> {
     DIFFICULTY_VARIANTS
         .iter()
         .map(|label| DifficultyOption {
@@ -96,7 +110,7 @@ fn difficulty_options(active: &str) -> Vec<DifficultyOption> {
         .collect()
 }
 
-fn tag_options(active_tags: &[String]) -> Vec<TagOption> {
+pub(crate) fn tag_options(active_tags: &[String]) -> Vec<TagOption> {
     TAG_VARIANTS
         .iter()
         .map(|t| TagOption {
@@ -108,15 +122,50 @@ fn tag_options(active_tags: &[String]) -> Vec<TagOption> {
 
 // ── Form models ─────────────────────────────────────────────────────────
 
+/// Form-side ingredient row. Quantity + unit are kept as raw strings so
+/// validation failures can echo back the exact user input. They're parsed to
+/// (`Option<f32>`, [`Unit`]) at the submit boundary.
 #[derive(Debug, Clone, Default)]
 pub struct IngredientInput {
-    pub qty: String,
+    pub quantity: String,
+    pub unit: String,
     pub name: String,
+}
+
+/// Unit options shown in the per-row `<select>`. Order is the menu order.
+pub const UNIT_OPTIONS: &[(&str, &str)] = &[
+    ("", "—"),
+    ("g", "g"),
+    ("kg", "kg"),
+    ("ml", "ml"),
+    ("l", "l"),
+    ("tbsp", "tbsp"),
+    ("tsp", "tsp"),
+    ("cup", "cup"),
+    ("piece", "pc"),
+    ("pinch", "pinch"),
+];
+
+pub struct UnitOption {
+    pub value: &'static str,
+    pub label: &'static str,
+    pub selected: bool,
+}
+
+pub fn unit_options(active: &str) -> Vec<UnitOption> {
+    UNIT_OPTIONS
+        .iter()
+        .map(|(value, label)| UnitOption {
+            value,
+            label,
+            selected: *value == active,
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct StepInput {
-    pub minutes: u32,
+    pub wait_minutes: u32,
     pub text: String,
 }
 
@@ -125,7 +174,8 @@ pub struct StepInput {
 pub struct IngredientRow {
     pub ing: IngredientInput,
     pub row_id: String,
-    pub err_qty: Option<String>,
+    pub unit_options: Vec<UnitOption>,
+    pub err_quantity: Option<String>,
     pub err_name: Option<String>,
 }
 
@@ -196,23 +246,25 @@ fn validate(form: &CreateRecipeForm) -> FieldErrors {
         errs.summary.push("Add a title.".to_owned());
     }
 
-    let has_any_ingredient = form
-        .ingredients
-        .iter()
-        .any(|i| !i.qty.trim().is_empty() || !i.name.trim().is_empty());
+    let row_filled = |i: &IngredientInput| {
+        !i.name.trim().is_empty()
+            || !i.quantity.trim().is_empty()
+            || !i.unit.trim().is_empty()
+    };
+    let has_any_ingredient = form.ingredients.iter().any(|i| !i.name.trim().is_empty());
     if !has_any_ingredient {
         errs.summary.push("Add at least one ingredient.".to_owned());
-    } else {
-        // Per-row: if name is filled but qty is missing (or vice versa), flag it.
-        for (i, ing) in form.ingredients.iter().enumerate() {
-            let qty_empty = ing.qty.trim().is_empty();
-            let name_empty = ing.name.trim().is_empty();
-            if name_empty && !qty_empty {
-                errs.ingredient[i].1 = Some("Name is required.".to_owned());
-            }
-            if qty_empty && !name_empty {
-                errs.ingredient[i].0 = Some("Qty is required.".to_owned());
-            }
+    }
+    for (i, ing) in form.ingredients.iter().enumerate() {
+        if !row_filled(ing) {
+            continue;
+        }
+        if ing.name.trim().is_empty() {
+            errs.ingredient[i].1 = Some("Name is required.".to_owned());
+        }
+        let q = ing.quantity.trim();
+        if !q.is_empty() && q.parse::<f32>().ok().filter(|n| *n >= 0.0).is_none() {
+            errs.ingredient[i].0 = Some("Quantity must be a number.".to_owned());
         }
     }
 
@@ -263,7 +315,8 @@ pub struct CreateRecipePage {
 pub struct IngredientRowFragment {
     pub ing: IngredientInput,
     pub row_id: String,
-    pub err_qty: Option<String>,
+    pub unit_options: Vec<UnitOption>,
+    pub err_quantity: Option<String>,
     pub err_name: Option<String>,
 }
 
@@ -282,26 +335,81 @@ pub async fn create_form(user: User) -> Response {
     render(page)
 }
 
-pub async fn create_submit(user: User, body: Bytes) -> Response {
+#[tracing::instrument(name = "recipes.create.submit", skip(state, body), fields(role = user.role.as_str()))]
+pub async fn create_submit(
+    user: User,
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Response {
     let form = parse_form(&body);
     let errs = validate(&form);
 
-    if errs.is_empty() {
-        // TODO: dispatch evento command to create the recipe. For now redirect
-        // straight to the library — the new entry won't actually appear there.
-        return Redirect::to("/recipes").into_response();
+    if !errs.is_empty() {
+        let mut resp = render(build_page(&user, form, errs));
+        *resp.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
+        return resp;
     }
 
-    let mut resp = render(build_page(&user, form, errs));
-    *resp.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
-    resp
+    let cmd = DraftRecipe {
+        owner_id: owner_id(&user),
+        title: form.title.clone(),
+        meal_type: MealType::parse(&form.meal_type).unwrap_or(MealType::Main),
+        cuisine: form.cuisine.clone(),
+        // The create form doesn't pick an emoji — let the aggregate default
+        // it from the meal type.
+        emoji: String::new(),
+        prep_minutes: form.prep_minutes,
+        cook_minutes: form.cook_minutes,
+        servings: form.servings,
+        difficulty: form.difficulty.clone(),
+        description: form.description.clone(),
+        tags: form.tags.clone(),
+        ingredients: form
+            .ingredients
+            .iter()
+            .map(|i| DomainIngredient {
+                name: i.name.clone(),
+                quantity: parse_quantity(&i.quantity),
+                unit: Unit::parse(&i.unit).unwrap_or(Unit::None),
+            })
+            .collect(),
+        steps: form
+            .steps
+            .iter()
+            .map(|s| DomainStep {
+                wait_minutes: s.wait_minutes,
+                text: s.text.clone(),
+            })
+            .collect(),
+        provenance: Provenance::manual(),
+    };
+
+    match draft_recipe(cmd, &state.evento).await {
+        Ok(recipe_id) => {
+            // The projection updates asynchronously (next subscription poll,
+            // ~1s). Hand the detail handler `awaiting=1` so it renders a
+            // poll-loop shell instead of a 404 if the row isn't there yet.
+            // Once the projection catches up the loop redirects to the
+            // clean URL via `ts-location`.
+            Redirect::to(&format!("/recipes/{recipe_id}?awaiting=1")).into_response()
+        }
+        Err(err) => {
+            tracing::error!(error = %err, "draft_recipe failed");
+            let mut errs = FieldErrors::default();
+            errs.summary.push(format!("Couldn't save: {err}"));
+            let mut resp = render(build_page(&user, form, errs));
+            *resp.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
+            resp
+        }
+    }
 }
 
 pub async fn ingredient_row_fragment(_user: User) -> Response {
     let frag = IngredientRowFragment {
         ing: IngredientInput::default(),
         row_id: next_row_id("ing"),
-        err_qty: None,
+        unit_options: unit_options(""),
+        err_quantity: None,
         err_name: None,
     };
     render(frag)
@@ -324,11 +432,14 @@ fn build_page(user: &User, form: CreateRecipeForm, errs: FieldErrors) -> CreateR
         .into_iter()
         .enumerate()
         .map(|(i, ing)| {
-            let (err_qty, err_name) = errs.ingredient.get(i).cloned().unwrap_or((None, None));
+            let (err_quantity, err_name) =
+                errs.ingredient.get(i).cloned().unwrap_or((None, None));
+            let unit_opts = unit_options(&ing.unit);
             IngredientRow {
                 ing,
                 row_id: format!("ing-{i}"),
-                err_qty,
+                unit_options: unit_opts,
+                err_quantity,
                 err_name,
             }
         })
@@ -384,7 +495,8 @@ fn parse_form(body: &[u8]) -> CreateRecipeForm {
     let mut servings: u32 = 1;
     let mut tags: Vec<String> = Vec::new();
 
-    let mut ing_qty: Vec<String> = Vec::new();
+    let mut ing_quantity: Vec<String> = Vec::new();
+    let mut ing_unit: Vec<String> = Vec::new();
     let mut ing_name: Vec<String> = Vec::new();
     let mut step_text: Vec<String> = Vec::new();
     let mut step_min: Vec<u32> = Vec::new();
@@ -400,7 +512,8 @@ fn parse_form(body: &[u8]) -> CreateRecipeForm {
             "cook_minutes" => cook_minutes = value.parse().unwrap_or(0),
             "servings" => servings = value.parse().unwrap_or(1).max(1),
             "tag" => tags.push(value.into_owned()),
-            "ing_qty" => ing_qty.push(value.into_owned()),
+            "ing_quantity" => ing_quantity.push(value.into_owned()),
+            "ing_unit" => ing_unit.push(value.into_owned()),
             "ing_name" => ing_name.push(value.into_owned()),
             "step_text" => step_text.push(value.into_owned()),
             "step_min" => step_min.push(value.parse().unwrap_or(0)),
@@ -409,12 +522,13 @@ fn parse_form(body: &[u8]) -> CreateRecipeForm {
     }
 
     // Zip the parallel ingredient arrays. They should always match — the row
-    // template emits qty and name together — but be defensive against the user
-    // hand-crafting a body or a JS error dropping one side.
-    let ing_count = ing_qty.len().max(ing_name.len());
+    // template emits the three fields together — but be defensive against the
+    // user hand-crafting a body or a JS error dropping one side.
+    let ing_count = ing_quantity.len().max(ing_unit.len()).max(ing_name.len());
     let ingredients: Vec<IngredientInput> = (0..ing_count)
         .map(|i| IngredientInput {
-            qty: ing_qty.get(i).cloned().unwrap_or_default(),
+            quantity: ing_quantity.get(i).cloned().unwrap_or_default(),
+            unit: ing_unit.get(i).cloned().unwrap_or_default(),
             name: ing_name.get(i).cloned().unwrap_or_default(),
         })
         .collect();
@@ -423,7 +537,7 @@ fn parse_form(body: &[u8]) -> CreateRecipeForm {
     let steps: Vec<StepInput> = (0..step_count)
         .map(|i| StepInput {
             text: step_text.get(i).cloned().unwrap_or_default(),
-            minutes: step_min.get(i).copied().unwrap_or(0),
+            wait_minutes: step_min.get(i).copied().unwrap_or(0),
         })
         .collect();
 
@@ -449,6 +563,17 @@ fn next_row_id(prefix: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("{prefix}-new-{n}")
+}
+
+/// Parse the raw quantity string into the domain's `Option<f32>`. Empty,
+/// whitespace, or unparseable input becomes `None` (the validator catches
+/// malformed input before this is reached on the success path).
+fn parse_quantity(raw: &str) -> Option<f32> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed.parse::<f32>().ok().filter(|n| *n >= 0.0)
 }
 
 fn render<T: Template>(tmpl: T) -> Response {

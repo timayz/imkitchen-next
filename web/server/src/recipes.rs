@@ -1,6 +1,4 @@
-//! Recipes library — the shared catalog users browse to add recipes to their
-//! meal plan. UI integration only: data is seeded in [`fake_recipes`]; swap to
-//! a real query (probably evento-backed) once the read side exists.
+//! Recipes catalog — read side.
 //!
 //! Two response shapes:
 //!  - full page → [`RecipesIndexPage`] (`recipes/index.html`)
@@ -10,16 +8,28 @@
 //!    `#filter-chips` carrying `ts-swap-push`, so a single response refreshes
 //!    the grid AND the active-state of the chrome out-of-band. Triggers also
 //!    set `ts-req-history="push"` so the browser URL bar tracks state.
+//!
+//! Data comes from the `recipes_view` projection (see
+//! `imkitchen_recipes::projection::recipes_view`).
+//!
+//! Owner scoping: `user.id` (the per-login ULID baked into the session
+//! cookie at `POST /login`). Logging out drops the id so recipes created
+//! pre-logout aren't visible after the next login — see `auth.rs` for the
+//! lifecycle.
 
 use askama::Template;
 use axum::{
-    extract::{Path, Query},
+    extract::{Path, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{Html, IntoResponse, Response},
 };
+use imkitchen_recipes::{
+    projection::recipes_view::{self, RecipeRow, RecipesQuery as ProjectionQuery},
+    recipe::{IngredientFact, MealType, StepFact},
+};
 use serde::Deserialize;
 
-use crate::auth::User;
+use crate::{AppState, auth::User};
 
 /// TwinSpark sets `Accept: text/html+partial` on every ts-req call. Detecting
 /// this lets the handler return just the fragment block instead of the full
@@ -33,74 +43,54 @@ fn wants_partial(headers: &HeaderMap) -> bool {
         .is_some_and(|v| v.contains(TS_PARTIAL_ACCEPT))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MealType {
-    Entree,
-    Main,
-    Side,
-    Dessert,
-}
-
-impl MealType {
-    /// Lowercase slug used in URLs and as the `type-*` Tailwind color suffix.
-    pub fn slug(self) -> &'static str {
-        match self {
-            MealType::Entree => "entree",
-            MealType::Main => "main",
-            MealType::Side => "side",
-            MealType::Dessert => "dessert",
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            MealType::Entree => "Starter",
-            MealType::Main => "Main",
-            MealType::Side => "Side",
-            MealType::Dessert => "Dessert",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Ingredient {
-    pub name: &'static str,
-    pub qty: &'static str,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Step {
-    /// Active minutes for this step (informational; not a timer).
-    pub minutes: u32,
-    pub text: &'static str,
-}
-
+/// View model fed to the templates. Owns the row data plus pre-computed
+/// helpers (`type_slug`, `type_label`, `total_ingredients`, `total_steps`)
+/// that the templates rely on. Built from a [`RecipeRow`] via [`Recipe::from_row`].
 #[derive(Debug, Clone)]
 pub struct Recipe {
-    pub id: &'static str,
-    pub title: &'static str,
+    pub id: String,
+    pub title: String,
     pub kind: MealType,
-    pub emoji: &'static str,
-    pub cuisine: &'static str,
+    pub emoji: String,
+    pub cuisine: String,
     pub time_minutes: u32,
     pub servings: u32,
-    pub rating: f32,
-    /// "Easy" / "Medium" / "Hard" — shown in the detail meta strip.
-    pub difficulty: &'static str,
-    /// Hero blurb on the detail page. Missing for the recipes the mockup
-    /// didn't enrich; the template hides the paragraph when empty.
-    pub description: Option<&'static str>,
-    /// Display-only tags shown as pills next to the meal-type chip.
-    pub tags: &'static [&'static str],
-    /// Empty when the seed didn't include ingredients; the detail template
-    /// renders a "we don't have the ingredients for this one yet" notice.
-    pub ingredients: &'static [Ingredient],
-    /// Empty when the seed didn't include steps; the method section is hidden
-    /// in that case.
-    pub steps: &'static [Step],
+    pub rating: f64,
+    pub difficulty: String,
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+    pub ingredients: Vec<IngredientFact>,
+    pub steps: Vec<StepFact>,
 }
 
 impl Recipe {
+    fn from_row(row: RecipeRow) -> Self {
+        let kind = MealType::parse(&row.meal_type).unwrap_or(MealType::Main);
+        let description = if row.description.is_empty() {
+            None
+        } else {
+            Some(row.description.clone())
+        };
+        let tags = row.tags();
+        let ingredients = row.ingredients();
+        let steps = row.steps();
+        Self {
+            id: row.id,
+            title: row.title,
+            kind,
+            emoji: row.emoji,
+            cuisine: row.cuisine,
+            time_minutes: row.time_minutes.max(0) as u32,
+            servings: row.servings.max(1) as u32,
+            rating: row.rating,
+            difficulty: row.difficulty,
+            description,
+            tags,
+            ingredients,
+            steps,
+        }
+    }
+
     // Helpers used by templates (Askama calls zero-arg methods on values).
     pub fn type_slug(&self) -> &'static str {
         self.kind.slug()
@@ -138,13 +128,13 @@ impl FilterId {
         }
     }
 
-    fn matches(self, kind: MealType) -> bool {
+    fn meal_type_slug(self) -> Option<&'static str> {
         match self {
-            FilterId::All => true,
-            FilterId::Entree => kind == MealType::Entree,
-            FilterId::Main => kind == MealType::Main,
-            FilterId::Side => kind == MealType::Side,
-            FilterId::Dessert => kind == MealType::Dessert,
+            FilterId::All => None,
+            FilterId::Entree => Some("entree"),
+            FilterId::Main => Some("main"),
+            FilterId::Side => Some("side"),
+            FilterId::Dessert => Some("dessert"),
         }
     }
 }
@@ -244,6 +234,23 @@ pub struct NavItem {
     pub icon_svg: &'static str,
 }
 
+/// Query params on `/recipes/{id}`. `awaiting=1` is set by the create-flow
+/// redirect so the detail handler knows to render a poll-loop while the
+/// projection catches up rather than serving a true 404. `attempt` counts
+/// poll iterations so we can stop after [`ATTEMPT_LIMIT`].
+#[derive(Debug, Deserialize, Default)]
+pub struct DetailQuery {
+    #[serde(default)]
+    pub awaiting: u8,
+    #[serde(default)]
+    pub attempt: u8,
+}
+
+/// Roughly 5 seconds of polling at 300 ms per attempt (plus the initial
+/// 300 ms before the first poll). Past this we render a terminal "still
+/// working" panel and stop polling.
+pub const ATTEMPT_LIMIT: u8 = 16;
+
 // ── Templates ────────────────────────────────────────────────────────────
 
 #[derive(Template)]
@@ -276,6 +283,11 @@ pub struct RecipeDetailPage {
     pub user_name: &'static str,
     pub user_email: &'static str,
     pub user_premium: bool,
+    /// `true` for the recipe's owner — gates the "Edit" link. Always `true`
+    /// today because `find_for_owner` already filters by owner; reserved
+    /// for a future shared-catalog view where non-owners can read but not
+    /// edit.
+    pub can_edit: bool,
 }
 
 #[derive(Template)]
@@ -287,6 +299,33 @@ pub struct RecipeNotFoundPage {
     pub user_name: &'static str,
     pub user_email: &'static str,
     pub user_premium: bool,
+}
+
+/// Full-page loading shell rendered by the browser-side first hit on
+/// `/recipes/{id}?awaiting=1`. The body of the page is the same fragment
+/// (`_detail_loading.html`) that twinspark swaps in on subsequent polls.
+#[derive(Template)]
+#[template(path = "recipes/detail_loading.html")]
+pub struct RecipeDetailLoadingPage {
+    pub recipe_id: String,
+    pub attempt: u8,
+    pub attempt_limit: u8,
+    pub nav_items: Vec<NavItem>,
+    pub user_initial: &'static str,
+    pub user_name: &'static str,
+    pub user_email: &'static str,
+    pub user_premium: bool,
+}
+
+/// Partial-only loading shell. Returned with `Accept: text/html+partial` to
+/// replace the previous poll's shell, re-arming the `ts-trigger="load
+/// delay:300ms"`.
+#[derive(Template)]
+#[template(path = "recipes/_detail_loading.html")]
+pub struct RecipeDetailLoadingFragment {
+    pub recipe_id: String,
+    pub attempt: u8,
+    pub attempt_limit: u8,
 }
 
 #[derive(Template)]
@@ -301,23 +340,41 @@ pub struct RecipesGridFragment {
 
 // ── Handler ──────────────────────────────────────────────────────────────
 
+/// Owner-id helper. See module docs.
+pub(crate) fn owner_id(user: &User) -> String {
+    user.id.clone()
+}
+
+#[tracing::instrument(name = "recipes.index", skip(state, headers), fields(role = user.role.as_str()))]
 pub async fn recipes_index(
     user: User,
+    State(state): State<AppState>,
     headers: HeaderMap,
     Query(q): Query<RecipesQuery>,
 ) -> Response {
-    let all = fake_recipes();
-    let total_count = all.len();
+    let owner = owner_id(&user);
 
-    let search = q.q.as_deref().map(str::trim).filter(|s| !s.is_empty());
-    let recipes: Vec<Recipe> = all
-        .into_iter()
-        .filter(|r| q.filter.matches(r.kind))
-        .filter(|r| match search {
-            None => true,
-            Some(needle) => matches_search(r, needle),
-        })
-        .collect();
+    let query = ProjectionQuery {
+        meal_type: q.filter.meal_type_slug().map(str::to_owned),
+        search: q.q.clone(),
+    };
+
+    let total_count = match recipes_view::total_count(&state.read_pool, &owner).await {
+        Ok(n) => n as usize,
+        Err(err) => {
+            tracing::error!(error = %err, "recipes_view::total_count failed");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "internal error").into_response();
+        }
+    };
+
+    let rows = match recipes_view::list_for_owner(&state.read_pool, &owner, &query).await {
+        Ok(rs) => rs,
+        Err(err) => {
+            tracing::error!(error = %err, "recipes_view::list_for_owner failed");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "internal error").into_response();
+        }
+    };
+    let recipes: Vec<Recipe> = rows.into_iter().map(Recipe::from_row).collect();
 
     let filters = filter_chips(&q);
     let view_options = view_options(&q);
@@ -363,37 +420,91 @@ pub async fn recipes_index(
 
 // ── Recipe detail handler ────────────────────────────────────────────────
 
-pub async fn recipe_detail(user: User, Path(id): Path<String>) -> Response {
-    let Some(recipe) = fake_recipes().into_iter().find(|r| r.id == id) else {
+#[tracing::instrument(name = "recipes.detail", skip(state, headers), fields(recipe_id = %id, role = user.role.as_str(), awaiting = q.awaiting, attempt = q.attempt))]
+pub async fn recipe_detail(
+    user: User,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(q): Query<DetailQuery>,
+) -> Response {
+    let owner = owner_id(&user);
+
+    let row = match recipes_view::find_for_owner(&state.read_pool, &owner, &id).await {
+        Ok(r) => r,
+        Err(err) => {
+            tracing::error!(error = %err, "recipes_view::find_for_owner failed");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "internal error").into_response();
+        }
+    };
+
+    if let Some(row) = row {
+        // Projection is ready. If we're in the middle of a poll loop, kick
+        // the browser to the clean URL via `ts-location` so the user lands
+        // on `/recipes/{id}` without the `?awaiting=...` query string.
+        if q.awaiting > 0 && wants_partial(&headers) {
+            let mut resp = (StatusCode::OK, "").into_response();
+            if let Ok(value) = HeaderValue::from_str(&format!("/recipes/{}", row.id)) {
+                resp.headers_mut().insert("ts-location", value);
+            }
+            return resp;
+        }
+
         let chrome = chrome_for(&user);
-        let body = RecipeNotFoundPage {
-            requested_id: id,
+        return render(RecipeDetailPage {
+            recipe: Recipe::from_row(row),
             nav_items: chrome.nav_items,
             user_initial: chrome.user_initial,
             user_name: chrome.user_name,
             user_email: chrome.user_email,
             user_premium: chrome.user_premium,
-        };
-        return match body.render() {
-            Ok(html) => (StatusCode::NOT_FOUND, Html(html)).into_response(),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-        };
-    };
+            // `find_for_owner` already scoped the read by owner, so anyone
+            // reaching this branch owns the recipe.
+            can_edit: true,
+        });
+    }
 
+    // Row not (yet) in the projection.
+    if q.awaiting > 0 {
+        // Create-redirect lane: keep polling. The shell carries the next
+        // attempt count; when it crosses ATTEMPT_LIMIT we render a terminal
+        // "still working" panel with no trigger and the poll loop ends.
+        let attempt = q.attempt.min(ATTEMPT_LIMIT);
+        if wants_partial(&headers) {
+            return render(RecipeDetailLoadingFragment {
+                recipe_id: id,
+                attempt,
+                attempt_limit: ATTEMPT_LIMIT,
+            });
+        }
+        let chrome = chrome_for(&user);
+        return render(RecipeDetailLoadingPage {
+            recipe_id: id,
+            attempt,
+            attempt_limit: ATTEMPT_LIMIT,
+            nav_items: chrome.nav_items,
+            user_initial: chrome.user_initial,
+            user_name: chrome.user_name,
+            user_email: chrome.user_email,
+            user_premium: chrome.user_premium,
+        });
+    }
+
+    // Genuine 404: no `?awaiting=1`, so this isn't a freshly-created recipe
+    // catching up — the recipe doesn't exist (or isn't ours).
     let chrome = chrome_for(&user);
-    render(RecipeDetailPage {
-        recipe,
+    let body = RecipeNotFoundPage {
+        requested_id: id,
         nav_items: chrome.nav_items,
         user_initial: chrome.user_initial,
         user_name: chrome.user_name,
         user_email: chrome.user_email,
         user_premium: chrome.user_premium,
-    })
-}
-
-fn matches_search(r: &Recipe, needle: &str) -> bool {
-    let n = needle.to_ascii_lowercase();
-    r.title.to_ascii_lowercase().contains(&n) || r.cuisine.to_ascii_lowercase().contains(&n)
+    };
+    match body.render() {
+        Ok(html) => (StatusCode::NOT_FOUND, Html(html)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }
 
 pub(crate) fn user_initial(user: &User) -> &'static str {
@@ -431,7 +542,7 @@ fn render<T: Template>(tmpl: T) -> Response {
     }
 }
 
-// ── Static data (replace with read-model queries) ───────────────────────
+// ── Static chrome ───────────────────────────────────────────────────────
 
 const ICON_BOOK: &str = r##"<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z"/><path d="M4 19a2 2 0 012-2h13"/></svg>"##;
 const ICON_CHEF: &str = r##"<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14v5a1 1 0 001 1h10a1 1 0 001-1v-5"/><path d="M5 14a3 3 0 01-.5-5.9A4 4 0 0112 5a4 4 0 017.5 3.1A3 3 0 0119 14H5z"/></svg>"##;
@@ -513,305 +624,6 @@ fn view_options(current: &RecipesQuery) -> Vec<ViewOption> {
             active: current.view == ViewId::List,
             icon_svg: ICON_LIST,
             href: build_href(current, None, Some(ViewId::List), None),
-        },
-    ]
-}
-
-/// Seed catalog mirroring the mockup. Replace once the recipes read model
-/// exists.
-fn fake_recipes() -> Vec<Recipe> {
-    // Ingredient / step tables for the two recipes the mockup enriches in
-    // detail (r1 + r6). Other recipes ship empty slices and the detail
-    // template handles the missing-content case.
-    const R1_INGREDIENTS: &[Ingredient] = &[
-        Ingredient {
-            name: "Chicken pieces",
-            qty: "500 g",
-        },
-        Ingredient {
-            name: "Long-grain rice",
-            qty: "2 cups",
-        },
-        Ingredient {
-            name: "Bell peppers",
-            qty: "2",
-        },
-        Ingredient {
-            name: "Yellow onion",
-            qty: "1 large",
-        },
-        Ingredient {
-            name: "Chicken stock",
-            qty: "700 ml",
-        },
-        Ingredient {
-            name: "Saffron",
-            qty: "1 pinch",
-        },
-        Ingredient {
-            name: "Garlic",
-            qty: "4 cloves",
-        },
-        Ingredient {
-            name: "Olive oil",
-            qty: "2 tbsp",
-        },
-    ];
-    const R1_STEPS: &[Step] = &[
-        Step {
-            minutes: 10,
-            text: "Season chicken with salt, paprika, and cumin. Brown skin-side down in a wide pan until deeply golden.",
-        },
-        Step {
-            minutes: 6,
-            text: "Remove chicken. Sauté diced onion, peppers, and garlic until soft and a little caramelized.",
-        },
-        Step {
-            minutes: 2,
-            text: "Add rice; toast for 2 minutes until glossy.",
-        },
-        Step {
-            minutes: 3,
-            text: "Pour in stock, saffron, bay leaf. Bring to a simmer.",
-        },
-        Step {
-            minutes: 35,
-            text: "Return chicken. Cover, simmer on low heat until rice is tender and chicken cooked through.",
-        },
-        Step {
-            minutes: 6,
-            text: "Rest off heat 5 min. Fluff rice. Top with parsley and a squeeze of lime.",
-        },
-    ];
-    const R6_INGREDIENTS: &[Ingredient] = &[
-        Ingredient {
-            name: "Dark chocolate 70%",
-            qty: "200 g",
-        },
-        Ingredient {
-            name: "Eggs",
-            qty: "4",
-        },
-        Ingredient {
-            name: "Heavy cream",
-            qty: "200 ml",
-        },
-        Ingredient {
-            name: "Caster sugar",
-            qty: "40 g",
-        },
-        Ingredient {
-            name: "Sea salt",
-            qty: "1 pinch",
-        },
-    ];
-    const R6_STEPS: &[Step] = &[
-        Step {
-            minutes: 5,
-            text: "Melt chocolate gently over a bain-marie. Let cool to just warm.",
-        },
-        Step {
-            minutes: 4,
-            text: "Separate eggs. Whisk yolks into the chocolate one at a time.",
-        },
-        Step {
-            minutes: 4,
-            text: "Whip cream to soft peaks. Whip whites with sugar to glossy peaks.",
-        },
-        Step {
-            minutes: 3,
-            text: "Fold whipped cream into the chocolate. Then fold in the whites in three additions — keep it airy.",
-        },
-        Step {
-            minutes: 4,
-            text: "Spoon into glasses and chill at least 2 hours. Top with flaky salt and shaved chocolate to serve.",
-        },
-    ];
-
-    vec![
-        Recipe {
-            id: "r1",
-            title: "Arroz con Pollo",
-            kind: MealType::Main,
-            emoji: "🍛",
-            cuisine: "Caribbean",
-            time_minutes: 65,
-            servings: 4,
-            rating: 4.7,
-            difficulty: "Medium",
-            description: Some(
-                "Saffron-scented rice braised with chicken, peppers, and a whisper of smoked paprika — a full one-pot dinner.",
-            ),
-            tags: &["Gluten-free", "One-pot"],
-            ingredients: R1_INGREDIENTS,
-            steps: R1_STEPS,
-        },
-        Recipe {
-            id: "r2",
-            title: "Carrot Cake",
-            kind: MealType::Dessert,
-            emoji: "🍰",
-            cuisine: "American",
-            time_minutes: 60,
-            servings: 8,
-            rating: 4.9,
-            difficulty: "Easy",
-            description: None,
-            tags: &["Vegetarian"],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r3",
-            title: "Tofu Vegetable Stir Fry",
-            kind: MealType::Main,
-            emoji: "🥘",
-            cuisine: "Asian",
-            time_minutes: 25,
-            servings: 4,
-            rating: 4.5,
-            difficulty: "Easy",
-            description: None,
-            tags: &["Vegan", "Nut-free"],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r4",
-            title: "Caesar Salad",
-            kind: MealType::Entree,
-            emoji: "🥗",
-            cuisine: "Italian",
-            time_minutes: 15,
-            servings: 2,
-            rating: 4.3,
-            difficulty: "Easy",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r5",
-            title: "Thai Red Curry",
-            kind: MealType::Main,
-            emoji: "🍲",
-            cuisine: "Thai",
-            time_minutes: 40,
-            servings: 4,
-            rating: 4.8,
-            difficulty: "Medium",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r6",
-            title: "Chocolate Mousse",
-            kind: MealType::Dessert,
-            emoji: "🍫",
-            cuisine: "French",
-            time_minutes: 20,
-            servings: 4,
-            rating: 4.6,
-            difficulty: "Easy",
-            description: Some(
-                "Cloud-light bittersweet mousse — a handful of ingredients, all technique. Chill at least two hours before serving.",
-            ),
-            tags: &[],
-            ingredients: R6_INGREDIENTS,
-            steps: R6_STEPS,
-        },
-        Recipe {
-            id: "r7",
-            title: "Garlic Focaccia",
-            kind: MealType::Side,
-            emoji: "🥖",
-            cuisine: "Italian",
-            time_minutes: 180,
-            servings: 6,
-            rating: 4.4,
-            difficulty: "Medium",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r8",
-            title: "Miso Soup",
-            kind: MealType::Entree,
-            emoji: "🍜",
-            cuisine: "Japanese",
-            time_minutes: 15,
-            servings: 4,
-            rating: 4.2,
-            difficulty: "Easy",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r9",
-            title: "Pulled Pork Tacos",
-            kind: MealType::Main,
-            emoji: "🌮",
-            cuisine: "Mexican",
-            time_minutes: 240,
-            servings: 6,
-            rating: 4.9,
-            difficulty: "Hard",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r10",
-            title: "Caprese Plate",
-            kind: MealType::Entree,
-            emoji: "🧀",
-            cuisine: "Italian",
-            time_minutes: 10,
-            servings: 4,
-            rating: 4.4,
-            difficulty: "Easy",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r11",
-            title: "Roasted Potatoes",
-            kind: MealType::Side,
-            emoji: "🥔",
-            cuisine: "American",
-            time_minutes: 45,
-            servings: 4,
-            rating: 4.1,
-            difficulty: "Easy",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
-        },
-        Recipe {
-            id: "r12",
-            title: "Tiramisu",
-            kind: MealType::Dessert,
-            emoji: "☕",
-            cuisine: "Italian",
-            time_minutes: 240,
-            servings: 6,
-            rating: 4.8,
-            difficulty: "Medium",
-            description: None,
-            tags: &[],
-            ingredients: &[],
-            steps: &[],
         },
     ]
 }

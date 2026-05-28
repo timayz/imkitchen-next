@@ -41,6 +41,7 @@
 
 <form action="/recipes/import" method="post" class="mt-4">
   <input type="hidden" name="next_stage" value="done">
+  <input type="hidden" name="job" value="{{ job_id }}">
 
   <ul role="list" class="flex flex-col gap-2">
     {% for r in parsed %}

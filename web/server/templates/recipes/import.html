@@ -65,8 +65,14 @@
 
       {% if stage == "upload" %}
         {% include "recipes/_import_upload.html" %}
+      {% else if stage == "failed" %}
+        {% include "recipes/_import_failed.html" %}
       {% else if stage == "preview" %}
-        {% include "recipes/_import_preview.html" %}
+        {% if waiting %}
+          {% include "recipes/_import_waiting.html" %}
+        {% else %}
+          {% include "recipes/_import_preview.html" %}
+        {% endif %}
       {% else %}
         {% include "recipes/_import_done.html" %}
       {% endif %}

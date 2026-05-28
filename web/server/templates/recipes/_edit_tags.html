@@ -1,0 +1,38 @@
+{# Inputs:                                                                    #}
+{#   recipe_id: &str                                                          #}
+{#   tag_options: Vec<TagOption>                                              #}
+{#   saved: bool                                                              #}
+<section id="edit-tags" aria-labelledby="edit-tags-heading">
+  <h2 id="edit-tags-heading" class="mb-3 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+    Dietary tags
+  </h2>
+  <form action="/recipes/{{ recipe_id }}/tags" method="post"
+        ts-req="/recipes/{{ recipe_id }}/tags"
+        ts-target="#edit-tags"
+        class="rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-4 shadow-sm sm:p-5">
+    <fieldset>
+      <legend class="sr-only">Dietary tags</legend>
+      <div class="flex flex-wrap gap-2">
+        {% for tag in tag_options %}
+        <label class="block">
+          <input type="checkbox" name="tag" value="{{ tag.value }}" class="peer sr-only"
+                 {% if tag.active %}checked{% endif %}>
+          <span class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-ink-2)] hover:border-[var(--color-ink)] peer-checked:border-transparent peer-checked:bg-[var(--color-herb)] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-tangerine)]">
+            {{ tag.value }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="mt-3 flex items-center gap-3">
+      <button type="submit"
+              class="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-cream)] hover:bg-[var(--color-ink)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+        Save tags
+      </button>
+      {% if saved %}
+      <span role="status" class="text-[12px] text-[var(--color-herb-ink)]">Saved.</span>
+      {% endif %}
+    </div>
+  </form>
+</section>
