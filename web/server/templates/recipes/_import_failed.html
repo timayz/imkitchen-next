@@ -1,0 +1,14 @@
+{# Terminal failure for the import flow. No trigger so polling stops; the   #}
+{# user is asked to start over.                                              #}
+<section role="alert" class="mx-auto max-w-md rounded-2xl border border-[var(--color-tangerine)]/40 bg-[var(--color-tangerine-soft)] p-5 text-[var(--color-tangerine-ink)]">
+  <h1 tabindex="-1" class="text-lg font-semibold" style="font-family: var(--font-serif);">
+    We couldn't import that.
+  </h1>
+  <p class="mt-2 text-sm leading-relaxed">{{ failure_reason }}</p>
+  <p class="mt-4">
+    <a href="/recipes/import"
+       class="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+      Start over
+    </a>
+  </p>
+</section>

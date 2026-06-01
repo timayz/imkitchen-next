@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@source "../server/templates/**/*.html";
+
+@theme {
+  --color-ink: #1b140c;
+  --color-ink-2: #4a3f33;
+  --color-ink-3: #6e6354;
+  --color-cream: #fbf5e9;
+  --color-cream-2: #f3ead6;
+  --color-paper: #ffffff;
+  --color-line: #e8dfc8;
+  --color-line-2: #ebe3d1;
+  --color-tangerine: #ef6c1e;
+  --color-tangerine-soft: #fde3cf;
+  --color-tangerine-ink: #7a2d05;
+  --color-herb: #2f7d4f;
+  --color-herb-soft: #d8ebdb;
+  --color-herb-ink: #1b4d2e;
+
+  --color-type-entree:      #3b6fb0;
+  --color-type-entree-soft: #dde9f5;
+  --color-type-entree-ink:  #1e3a5f;
+  --color-type-main:        #ef6c1e;
+  --color-type-main-soft:   #fde3cf;
+  --color-type-main-ink:    #7a2d05;
+  --color-type-side:        #2f7d4f;
+  --color-type-side-soft:   #d8ebdb;
+  --color-type-side-ink:    #1b4d2e;
+  --color-type-dessert:     #c4428d;
+  --color-type-dessert-soft:#f6dbeb;
+  --color-type-dessert-ink: #6b1f49;
+
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans:  'Inter Tight', Inter, system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+}

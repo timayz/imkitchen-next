@@ -1,0 +1,60 @@
+{# One ingredient row. Used in the initial render AND as the TwinSpark fragment #}
+{# response for "Add ingredient". The row class `.ing-row` is the remove target  #}
+{# (`ts-action="remove"` with `ts-target="parent .ing-row"`).                    #}
+{#                                                                              #}
+{# Inputs:                                                                       #}
+{#  ing.quantity: &str           — current value (empty for blank rows)          #}
+{#  ing.unit: &str                — current Unit slug (empty for "—")            #}
+{#  ing.name: &str                                                               #}
+{#  row_id: &str                  — stable suffix for label/error IDs            #}
+{#  unit_options: Vec<UnitOption> — select choices with `.selected` flag         #}
+{#  err_quantity: Option<&str>    — per-row validation error                     #}
+{#  err_name: Option<&str>                                                       #}
+<div class="ing-row flex items-start gap-2 border-t border-[var(--color-line-2)] py-2 first:border-t-0">
+  <span aria-hidden="true" class="mt-2 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--color-cream-2)] text-[var(--color-ink-3)]">
+    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/></svg>
+  </span>
+
+  <div class="min-w-0">
+    <label class="sr-only" for="ing-quantity-{{ row_id }}">Quantity</label>
+    <input id="ing-quantity-{{ row_id }}" type="number" name="ing_quantity" value="{{ ing.quantity }}"
+           min="0" step="any" inputmode="decimal" placeholder="qty"
+           {% if err_quantity.is_some() %}aria-invalid="true" aria-describedby="ing-quantity-err-{{ row_id }}"{% endif %}
+           class="block w-20 rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-2.5 py-2 text-[13px] text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none"
+           style="font-family: var(--font-mono);">
+    {% if let Some(msg) = err_quantity %}
+    <p id="ing-quantity-err-{{ row_id }}" class="mt-1 text-[11px] text-[var(--color-tangerine-ink)]">{{ msg }}</p>
+    {% endif %}
+  </div>
+
+  <div class="min-w-0">
+    <label class="sr-only" for="ing-unit-{{ row_id }}">Unit</label>
+    <select id="ing-unit-{{ row_id }}" name="ing_unit"
+            class="block w-20 rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-2 py-2 text-[13px] text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none">
+      {% for opt in unit_options %}
+      <option value="{{ opt.value }}"{% if opt.selected %} selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="min-w-0 flex-1">
+    <label class="sr-only" for="ing-name-{{ row_id }}">Ingredient</label>
+    <input id="ing-name-{{ row_id }}" type="text" name="ing_name" value="{{ ing.name }}"
+           placeholder="ingredient"
+           {% if err_name.is_some() %}aria-invalid="true" aria-describedby="ing-name-err-{{ row_id }}"{% endif %}
+           class="block w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-2.5 py-2 text-[13px] text-[var(--color-ink)] focus:border-[var(--color-tangerine)] focus:ring-2 focus:ring-[var(--color-tangerine)] focus:outline-none">
+    {% if let Some(msg) = err_name %}
+    <p id="ing-name-err-{{ row_id }}" class="mt-1 text-[11px] text-[var(--color-tangerine-ink)]">{{ msg }}</p>
+    {% endif %}
+  </div>
+
+  <button type="button"
+          aria-label="Remove ingredient"
+          ts-target="parent .ing-row"
+          ts-action="remove"
+          class="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--color-ink-3)] hover:bg-[var(--color-cream-2)] hover:text-[var(--color-ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>
+    </svg>
+  </button>
+</div>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}imkitchen{% endblock %}</title>
+
+  <link rel="stylesheet" href="/app.css">
+
+  {# TwinSpark — htmx-like progressive enhancement. Vendored from piranha/twinspark-js (main). #}
+  <script src="/twinspark.js" defer></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-[var(--color-cream)] font-[var(--font-sans)] text-[var(--color-ink)] antialiased">
+  {# Skip link for keyboard users — first focusable element on every page. #}
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-[var(--color-ink)] focus:px-3 focus:py-2 focus:text-sm focus:text-[var(--color-cream)]">
+    Skip to main content
+  </a>
+  {% block body %}{% endblock %}
+</body>
+</html>

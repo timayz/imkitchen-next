@@ -1,0 +1,17 @@
+{# Meal-type filter chips. Stable id + `ts-swap-push` so a click on one chip #}
+{# (or on the view toggle, or a search keystroke) refreshes the active-state #}
+{# of every chip via the out-of-band swap.                                   #}
+<nav id="filter-chips" ts-swap-push aria-label="Filter by meal type" class="flex flex-wrap gap-2">
+  {% for f in filters %}
+  <a href="{{ f.href }}"
+     {% if f.active %}aria-current="page"{% endif %}
+     ts-req="{{ f.href }}"
+     ts-target="#recipes-grid"
+     ts-req-strategy="last"
+     ts-req-history="push"
+     class="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold {% if f.active %}border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-cream)]{% else %}border-[var(--color-line-2)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:border-[var(--color-ink)]{% endif %} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+    <span aria-hidden="true">{{ f.emoji }}</span>
+    <span>{{ f.label }}</span>
+  </a>
+  {% endfor %}
+</nav>

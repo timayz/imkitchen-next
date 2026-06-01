@@ -13,9 +13,11 @@ path = "src/main.rs"
 imkitchen-web-server = { path = "../web/server" }
 imkitchen-admin-server = { path = "../admin/server" }
 imkitchen-db = { path = "../crates/db" }
+imkitchen-recipes = { path = "../crates/recipes" }
 axum.workspace = true
 clap.workspace = true
 config.workspace = true
+evento.workspace = true
 serde.workspace = true
 sqlx_migrator.workspace = true
 tokio.workspace = true

@@ -6,6 +6,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+evento.workspace = true
+imkitchen-recipes = { path = "../recipes" }
 sqlx.workspace = true
 sqlx_migrator.workspace = true
 tracing.workspace = true

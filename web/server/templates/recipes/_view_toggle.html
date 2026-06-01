@@ -1,0 +1,18 @@
+{# Grid/List view toggle. Stable id so TwinSpark out-of-band swaps (from #}
+{# filter/search responses) can update the active state in place via         #}
+{# `ts-swap-push`. The attribute is no-op on the live page and only used when #}
+{# this element appears inside a fragment response.                          #}
+<div id="view-toggle" ts-swap-push role="group" aria-label="View" class="flex gap-1 rounded-xl bg-[var(--color-cream-2)] p-1">
+  {% for v in view_options %}
+  <a href="{{ v.href }}"
+     {% if v.active %}aria-current="true"{% endif %}
+     aria-label="{{ v.label }} view"
+     ts-req="{{ v.href }}"
+     ts-target="#recipes-grid"
+     ts-req-strategy="last"
+     ts-req-history="push"
+     class="grid h-8 w-8 place-items-center rounded-lg {% if v.active %}bg-[var(--color-paper)] text-[var(--color-ink)] shadow-sm{% else %}text-[var(--color-ink-2)] hover:text-[var(--color-ink)]{% endif %} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+    {{ v.icon_svg|safe }}
+  </a>
+  {% endfor %}
+</div>

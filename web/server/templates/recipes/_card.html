@@ -1,0 +1,32 @@
+<article class="group overflow-hidden rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] shadow-sm transition hover:shadow-md focus-within:ring-2 focus-within:ring-[var(--color-tangerine)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--color-cream)]">
+  <a href="/recipes/{{ r.id }}" class="block focus:outline-none">
+    <div
+      class="relative flex h-36 items-center justify-center sm:h-40"
+      style="background: radial-gradient(ellipse at 30% 20%, var(--color-type-{{ r.type_slug() }}-soft), color-mix(in srgb, var(--color-type-{{ r.type_slug() }}) 33%, transparent) 70%, color-mix(in srgb, var(--color-type-{{ r.type_slug() }}) 60%, transparent));"
+    >
+      <span class="text-6xl drop-shadow-md sm:text-7xl" aria-hidden="true">{{ r.emoji }}</span>
+
+      <span class="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-medium text-[var(--color-type-{{ r.type_slug() }}-ink)]">
+        {{ r.type_label() }}
+      </span>
+
+      <span class="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-medium text-[var(--color-ink-2)]">
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+        </svg>
+        <span><span class="sr-only">Cook time </span>{{ r.time_minutes }}m</span>
+      </span>
+    </div>
+
+    <div class="px-3.5 py-3">
+      <h3 class="truncate text-[15px] font-semibold leading-tight text-[var(--color-ink)]">{{ r.title }}</h3>
+      <p class="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--color-ink-3)]">
+        <span>{{ r.cuisine }}</span>
+        <span aria-hidden="true">·</span>
+        <span><span class="sr-only">Rated </span><span aria-hidden="true">★</span> {{ r.rating }}</span>
+        <span aria-hidden="true">·</span>
+        <span>Serves {{ r.servings }}</span>
+      </p>
+    </div>
+  </a>
+</article>

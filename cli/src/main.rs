@@ -83,6 +83,23 @@ async fn serve(cfg: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
+    // One evento executor backed by the write pool. The read pool is used
+    // directly by projections for plain sqlx reads of `recipes_view` etc.
+    let evento: evento::Sqlite = write_pool.clone().into();
+
+    // Start the recipes context's projections + import saga. Returned handle
+    // is shut down with the HTTP servers on signal. The same parser is also
+    // injected into `AppState` so the web layer's multipart upload path uses
+    // it for `parse_file`.
+    let parser: std::sync::Arc<dyn imkitchen_recipes::import::RecipeParser> =
+        std::sync::Arc::new(imkitchen_recipes::import::SeedParser);
+    let recipes_subs = imkitchen_recipes::subscriptions::start_all(
+        &evento,
+        write_pool.clone(),
+        parser.clone(),
+    )
+    .await?;
+
     let web_listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.web.port)).await?;
     let admin_listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.admin.port)).await?;
 
@@ -93,6 +110,8 @@ async fn serve(cfg: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         config: cfg.web,
         read_pool: read_pool.clone(),
         write_pool: write_pool.clone(),
+        evento: evento.clone(),
+        recipe_parser: parser,
     });
     let admin_router = imkitchen_admin_server::router(imkitchen_admin_server::AppState {
         config: cfg.admin,
@@ -120,6 +139,11 @@ async fn serve(cfg: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         .into_future();
 
     tokio::try_join!(web, admin)?;
+
+    tracing::info!("shutting down recipes subscriptions");
+    if let Err(err) = recipes_subs.shutdown().await {
+        tracing::warn!(error = %err, "recipes subscriptions shutdown error");
+    }
 
     tracing::info!("closing database pools");
     tokio::join!(write_pool.close(), read_pool.close());

@@ -1,0 +1,29 @@
+{# Polling shell shown while the saga is still parsing the picked source.   #}
+{# Twinspark fires the next request 300ms after this element appears (or  #}
+{# is replaced with itself); when the projection row flips to             #}
+{# `stage='previewed'`, the handler returns `ts-location` with the clean  #}
+{# preview URL so the browser does a full navigation. If the saga has     #}
+{# already terminated in failure, the handler hands back the failed       #}
+{# branch instead, which has no trigger so polling stops naturally.       #}
+<section id="import-waiting-shell"
+         ts-req="/recipes/import?job={{ job_id }}&stage=preview"
+         ts-trigger="load delay:300ms"
+         aria-busy="true"
+         aria-live="polite"
+         class="py-10 sm:py-12">
+
+  <div class="flex flex-col items-center text-center">
+    <span aria-hidden="true"
+          class="grid h-16 w-16 place-items-center rounded-2xl bg-[var(--color-paper)] text-[var(--color-tangerine)] shadow-sm">
+      <svg class="h-7 w-7 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3a9 9 0 1 0 9 9"/>
+      </svg>
+    </span>
+    <h1 tabindex="-1" class="mt-5 text-2xl tracking-tight text-[var(--color-ink)] sm:text-3xl" style="font-family: var(--font-serif);">
+      Reading your recipes…
+    </h1>
+    <p class="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-ink-2)]">
+      We're scanning the source you picked. This usually takes about a second.
+    </p>
+  </div>
+</section>

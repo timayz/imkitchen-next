@@ -1,0 +1,37 @@
+{# Loading shell rendered when the edit page is hit with `?awaiting=1` after  #}
+{# a full-page (non-TwinSpark) section POST. The shell polls                  #}
+{# `/recipes/{id}/edit?awaiting=1&attempt=N+1` every 300 ms; the partial      #}
+{# response is the same shell with the attempt count incremented. Once       #}
+{# `attempt >= ATTEMPT_LIMIT` (~1.5 s — long enough for the subscription to  #}
+{# pick up the latest event) the handler returns `ts-location` pointing at   #}
+{# the clean `/recipes/{id}/edit` URL and the browser does a full nav into   #}
+{# the freshly-projected edit page.                                          #}
+{#                                                                            #}
+{# Inputs:                                                                    #}
+{#   recipe_id: &str                                                          #}
+{#   attempt: u8                                                              #}
+{#   attempt_limit: u8                                                        #}
+<section id="edit-awaiting-shell"
+         {% if attempt < attempt_limit %}
+         ts-req="/recipes/{{ recipe_id }}/edit?awaiting=1&attempt={{ attempt + 1 }}"
+         ts-trigger="load delay:300ms"
+         {% endif %}
+         aria-busy="true"
+         aria-live="polite"
+         class="mx-auto w-full max-w-[760px] px-4 pt-10 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-12 lg:px-10">
+
+  <div class="flex flex-col items-center text-center">
+    <span aria-hidden="true"
+          class="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--color-paper)] text-[var(--color-tangerine)] shadow-sm">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3a9 9 0 1 0 9 9"/>
+      </svg>
+    </span>
+    <h1 tabindex="-1" class="mt-4 text-xl tracking-tight text-[var(--color-ink)] sm:text-2xl" style="font-family: var(--font-serif);">
+      Saving your changes…
+    </h1>
+    <p class="mt-1.5 max-w-md text-[13px] leading-relaxed text-[var(--color-ink-2)]">
+      Updating your library. This usually takes about a second.
+    </p>
+  </div>
+</section>

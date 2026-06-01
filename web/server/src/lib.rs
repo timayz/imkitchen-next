@@ -1,7 +1,11 @@
 mod assets;
 mod auth;
+mod recipes;
+mod recipes_create;
+mod recipes_edit;
+mod recipes_import;
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
     Router,
@@ -12,6 +16,7 @@ use axum::{
     routing::{get, post},
 };
 use imkitchen_common::minify_response;
+use imkitchen_recipes::import::RecipeParser;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use tower_http::{
@@ -37,6 +42,14 @@ pub struct AppState {
     pub config: Config,
     pub read_pool: SqlitePool,
     pub write_pool: SqlitePool,
+    /// Evento executor pointed at the write pool. The read-side projection
+    /// queries hit `read_pool` directly via the projection helpers.
+    pub evento: evento::Sqlite,
+    /// Recipe parser used by the multipart upload path (`/recipes/import`
+    /// POST). The same instance is shared with the import saga so file
+    /// uploads and post-confirmation `materialize` calls go through the
+    /// same parser implementation.
+    pub recipe_parser: Arc<dyn RecipeParser>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -46,6 +59,45 @@ pub fn router(state: AppState) -> Router {
 
     Router::new()
         .route("/", get(index))
+        .route("/recipes", get(recipes::recipes_index))
+        .route(
+            "/recipes/new",
+            get(recipes_create::create_form).post(recipes_create::create_submit),
+        )
+        .route(
+            "/recipes/new/ingredient-row",
+            get(recipes_create::ingredient_row_fragment),
+        )
+        .route(
+            "/recipes/new/step-row",
+            get(recipes_create::step_row_fragment),
+        )
+        .route(
+            "/recipes/import",
+            get(recipes_import::import_page).post(recipes_import::import_submit),
+        )
+        .route("/recipes/{id}", get(recipes::recipe_detail))
+        .route("/recipes/{id}/edit", get(recipes_edit::edit_page))
+        .route(
+            "/recipes/{id}/title",
+            post(recipes_edit::rename_section),
+        )
+        .route(
+            "/recipes/{id}/categorization",
+            post(recipes_edit::recategorize_section),
+        )
+        .route("/recipes/{id}/timing", post(recipes_edit::retime_section))
+        .route(
+            "/recipes/{id}/description",
+            post(recipes_edit::redescribe_section),
+        )
+        .route("/recipes/{id}/tags", post(recipes_edit::retag_section))
+        .route(
+            "/recipes/{id}/ingredients",
+            post(recipes_edit::ingredients_section),
+        )
+        .route("/recipes/{id}/steps", post(recipes_edit::steps_section))
+        .route("/recipes/{id}/delete", post(recipes_edit::delete_section))
         .route("/share-recipe", get(share_recipe))
         .route("/premium", get(premium_only))
         .route("/login", get(auth::login_page).post(auth::login_submit))

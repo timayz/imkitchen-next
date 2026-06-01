@@ -1,0 +1,21 @@
+{# Bottom tab bar — primary nav on phones (<768). Hidden at md+ where the #}
+{# (collapsed or expanded) side rail takes over. Consumes the same `nav_items` #}
+{# vec as the side rail. #}
+<nav aria-label="Primary"
+     class="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--color-line-2)] bg-[var(--color-paper)]/95 backdrop-blur md:hidden"
+     style="padding-bottom: env(safe-area-inset-bottom);">
+  <ul role="list" class="mx-auto flex max-w-screen-sm items-stretch justify-around">
+    {% for nav in nav_items %}
+    <li class="flex-1">
+      <a href="{{ nav.href }}"
+         {% if nav.active %}aria-current="page"{% endif %}
+         class="flex h-14 min-h-[44px] flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-medium {% if nav.active %}text-[var(--color-tangerine-ink)]{% else %}text-[var(--color-ink-2)]{% endif %} focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-tangerine)]">
+        <span aria-hidden="true" class="grid h-7 w-7 place-items-center rounded-lg {% if nav.active %}bg-[var(--color-tangerine-soft)]{% endif %}">
+          {{ nav.icon_svg|safe }}
+        </span>
+        <span>{{ nav.label }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>

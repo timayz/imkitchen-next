@@ -1,0 +1,26 @@
+{# Recipe grid/list — the main TwinSpark swap target. Both layout modes live  #}
+{# under one stable id so `ts-target="#recipes-grid"` works for every trigger. #}
+<section id="recipes-grid" aria-label="Recipes">
+  <p role="status" class="sr-only">
+    {% if recipes.is_empty() %}No recipes match this filter.{% else %}Showing {{ recipes.len() }} recipe{{ recipes.len() | pluralize }}, {{ view_label }}.{% endif %}
+  </p>
+  {% if recipes.is_empty() %}
+    <p class="rounded-2xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)] p-10 text-center text-sm text-[var(--color-ink-3)]">
+      No recipes match this filter yet.
+    </p>
+  {% else if active_view == "list" %}
+    <ul role="list" class="flex flex-col gap-2.5">
+      {% for r in recipes %}
+      <li>{% include "recipes/_card_list.html" %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {# Column ramp: 1 (phones) → 2 (sm: phone landscape, iPad mini portrait) → #}
+    {# 3 (md: iPad portrait + lg: iPad landscape) → 4 (xl: desktop).            #}
+    <ul role="list" class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+      {% for r in recipes %}
+      <li>{% include "recipes/_card.html" %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

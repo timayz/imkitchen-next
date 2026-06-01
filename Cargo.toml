@@ -4,6 +4,7 @@ members = [
     "cli",
     "crates/common",
     "crates/db",
+    "crates/recipes",
     "web/server",
     "admin/server",
 ]
@@ -17,7 +18,12 @@ repository = "https://github.com/timayz/imkitchen-next"
 axum = "0.8.9"
 axum-extra = { version = "0.12", features = ["cookie"] }
 askama = "0.16.0"
-evento = "2.0.0-alpha.15"
+anyhow = "1"
+async-trait = "0.1"
+bitcode = "0.6"
+evento = { version = "2.0.0-alpha.15", features = ["sqlite"] }
+serde_json = "1"
+ulid = "1"
 lightningcss = "1.0.0-alpha.71"
 mime_guess = "2.0.5"
 minify-html = "0.18.1"
@@ -27,6 +33,7 @@ sqlx = { version = "=0.8.6", features = ["runtime-tokio", "sqlite"] }
 sqlx_migrator = { version = "0.18", features = ["sqlite"] }
 clap = { version = "4.6.1", features = ["derive"] }
 config = "0.15.23"
+form_urlencoded = "1.2"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 tokio-util = "0.7"

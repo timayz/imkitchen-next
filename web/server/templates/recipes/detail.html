@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} — imkitchen{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen">
+
+  {% include "_side_rail.html" %}
+
+  <main id="main" class="flex min-w-0 flex-1 flex-col">
+
+    {# ── Top bar — back + breadcrumb + actions ─────────────────────── #}
+    <div class="sticky top-0 z-10 border-b border-[var(--color-line-2)] bg-[var(--color-cream)]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10 lg:py-4">
+      <div class="flex items-center gap-3 sm:gap-4">
+        <a href="/recipes"
+           aria-label="Back to recipes"
+           class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6"/>
+          </svg>
+        </a>
+
+        <nav aria-label="Breadcrumb" class="min-w-0 flex-1">
+          <p class="text-[11px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+            <a href="/recipes" class="hover:text-[var(--color-ink)] focus:outline-none focus-visible:underline">Recipes</a>
+            <span aria-hidden="true">·</span>
+            <span>{{ recipe.type_label() }}</span>
+          </p>
+          <p class="mt-0.5 truncate text-sm font-semibold text-[var(--color-ink)] sm:text-base">
+            {{ recipe.title }}
+          </p>
+        </nav>
+
+        {# Actions visible on tablet+; phones get a "Start cooking" CTA at the bottom of the page. #}
+        <div class="hidden items-center gap-2 sm:flex">
+          {# Edit link — owner-only. The route handler already 404s for      #}
+          {# non-owners, so reaching this template implies the viewer owns   #}
+          {# the recipe and the link is always safe to render. The `can_edit` #}
+          {# flag exists as a future hook for view-but-not-edit (e.g., a     #}
+          {# shared catalog).                                                 #}
+          {% if can_edit %}
+          <a href="/recipes/{{ recipe.id }}/edit"
+             class="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3 text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>
+            <span>Edit</span>
+          </a>
+          {% endif %}
+          <button type="button"
+                  aria-pressed="true"
+                  class="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 text-sm font-semibold text-[var(--color-cream)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3z"/></svg>
+            <span>Saved</span>
+          </button>
+          <button type="button"
+                  class="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3 text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="5" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8 11l8-4M8 13l8 5"/></svg>
+            <span>Share</span>
+          </button>
+          <button type="button"
+                  class="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l14 8-14 8V4z"/></svg>
+            <span>Start cooking</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Body ───────────────────────────────────────────────────────── #}
+    {# Reserve room for the fixed mobile bottom bar + the sticky "Start cooking" CTA. #}
+    <div class="mx-auto w-full max-w-[1200px] px-4 pt-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-10 md:pb-10 lg:px-10">
+
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem]">
+
+        {# ── LEFT: hero + description + meta + method ─────────────── #}
+        <div class="min-w-0">
+
+          {# Hero with meal-type chord radial gradient #}
+          <div
+            class="relative flex h-56 items-center justify-center overflow-hidden rounded-3xl sm:h-72 lg:h-80 xl:h-[22rem]"
+            style="background: radial-gradient(ellipse at 30% 20%, var(--color-type-{{ recipe.type_slug() }}-soft), color-mix(in srgb, var(--color-type-{{ recipe.type_slug() }}) 33%, transparent) 60%, color-mix(in srgb, var(--color-type-{{ recipe.type_slug() }}) 73%, transparent));"
+          >
+            <span class="text-8xl drop-shadow-md sm:text-9xl lg:text-[10rem] xl:text-[12rem]" aria-hidden="true">{{ recipe.emoji }}</span>
+
+            <div class="absolute top-4 left-4 flex flex-wrap items-center gap-1.5">
+              <span class="inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-xs font-medium text-[var(--color-type-{{ recipe.type_slug() }}-ink)]">
+                {{ recipe.type_label() }}
+              </span>
+              {% for tag in recipe.tags %}
+                {% if loop.index <= 2 %}
+                <span class="inline-flex items-center rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-[var(--color-type-{{ recipe.type_slug() }}-ink)]">
+                  {{ tag }}
+                </span>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+
+          {# Title + description #}
+          <div class="mt-5 sm:mt-6">
+            <h1 class="text-4xl leading-none tracking-tight text-[var(--color-ink)] sm:text-5xl lg:text-6xl" style="font-family: var(--font-serif);">
+              {{ recipe.title }}
+            </h1>
+            {% if let Some(description) = recipe.description %}
+            <p class="mt-3 max-w-[40rem] text-[15px] leading-relaxed text-[var(--color-ink-2)] sm:mt-4 sm:text-base">
+              {{ description }}
+            </p>
+            {% endif %}
+          </div>
+
+          {# Meta strip — 4 stats #}
+          <dl class="mt-5 grid grid-cols-4 overflow-hidden rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] sm:mt-6">
+            <div class="px-2 py-4 text-center sm:px-3 sm:py-5">
+              <svg class="mx-auto h-4 w-4 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <dt class="mt-1.5 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">Time</dt>
+              <dd class="mt-1 text-base text-[var(--color-ink)] sm:text-lg" style="font-family: var(--font-serif);">{{ recipe.time_minutes }}m</dd>
+            </div>
+            <div class="border-l border-[var(--color-line-2)] px-2 py-4 text-center sm:px-3 sm:py-5">
+              <svg class="mx-auto h-4 w-4 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="8" r="3"/><path d="M15 15c2 .5 4 2 4 5"/></svg>
+              <dt class="mt-1.5 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">Serves</dt>
+              <dd class="mt-1 text-base text-[var(--color-ink)] sm:text-lg" style="font-family: var(--font-serif);">{{ recipe.servings }}</dd>
+            </div>
+            <div class="border-l border-[var(--color-line-2)] px-2 py-4 text-center sm:px-3 sm:py-5">
+              <svg class="mx-auto h-4 w-4 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2s4 4 4 8a4 4 0 11-8 0c0-2 1-3 1-3s0 2 2 2c0-3 1-5 1-7z"/><path d="M8 14a4 4 0 108 0"/></svg>
+              <dt class="mt-1.5 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">Level</dt>
+              <dd class="mt-1 text-base text-[var(--color-ink)] sm:text-lg" style="font-family: var(--font-serif);">{{ recipe.difficulty }}</dd>
+            </div>
+            <div class="border-l border-[var(--color-line-2)] px-2 py-4 text-center sm:px-3 sm:py-5">
+              <svg class="mx-auto h-4 w-4 text-[var(--color-ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3 7 7 .6-5.4 4.8 1.8 7L12 17.8 5.6 21.4l1.8-7L2 9.6 9 9z"/></svg>
+              <dt class="mt-1.5 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">Rating</dt>
+              <dd class="mt-1 text-base text-[var(--color-ink)] sm:text-lg" style="font-family: var(--font-serif);">{{ recipe.rating }}</dd>
+            </div>
+          </dl>
+
+          {# Ingredients (mobile placement — above method). At lg+, the same  #}
+          {# content also lives in the right-rail card; this block is hidden  #}
+          {# at lg+ so we don't render twice. The right-rail version stays    #}
+          {# sticky as the user scrolls through the method.                    #}
+          <section class="mt-8 lg:hidden" aria-labelledby="ingredients-heading-mobile">
+            <div class="mb-3 flex items-baseline gap-2">
+              <h2 id="ingredients-heading-mobile" class="text-2xl tracking-tight text-[var(--color-ink)]" style="font-family: var(--font-serif);">Ingredients</h2>
+              {% if recipe.total_ingredients() > 0 %}
+              <span class="text-xs text-[var(--color-ink-3)]">· for {{ recipe.servings }}</span>
+              {% endif %}
+            </div>
+            {% if recipe.total_ingredients() == 0 %}
+              <p class="rounded-2xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)] p-6 text-sm text-[var(--color-ink-3)]">
+                We don't have the ingredients for this recipe yet.
+              </p>
+            {% else %}
+              <ul role="list" class="divide-y divide-[var(--color-line-2)] overflow-hidden rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)]">
+                {% for ing in recipe.ingredients %}
+                <li class="flex items-center gap-3 px-3.5 py-2.5">
+                  <span aria-hidden="true" class="h-5 w-5 shrink-0 rounded-md border-[1.5px] border-[var(--color-line)] bg-[var(--color-cream)]"></span>
+                  <span class="flex-1 text-[14px] text-[var(--color-ink)]">{{ ing.name }}</span>
+                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.display_qty() }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </section>
+
+          {# Method #}
+          {% if recipe.total_steps() > 0 %}
+          <section class="mt-8 lg:mt-10" aria-labelledby="method-heading">
+            <div class="mb-4 flex items-baseline gap-2">
+              <h2 id="method-heading" class="text-2xl tracking-tight text-[var(--color-ink)] sm:text-3xl" style="font-family: var(--font-serif);">Method</h2>
+              <span class="text-xs text-[var(--color-ink-3)]">· {{ recipe.total_steps() }} steps</span>
+            </div>
+
+            <ol class="flex flex-col gap-2.5">
+              {% for step in recipe.steps %}
+              <li class="rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-4 shadow-sm sm:p-5">
+                <div class="flex items-start gap-3 sm:gap-4">
+                  <span aria-hidden="true"
+                        class="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base font-semibold sm:h-10 sm:w-10 sm:text-lg
+                               {% if loop.first %}bg-[var(--color-tangerine)] text-white{% else %}bg-[var(--color-cream-2)] text-[var(--color-ink)]{% endif %}"
+                        style="font-family: var(--font-serif);">{{ loop.index }}</span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-relaxed text-[var(--color-ink)] sm:text-[15px]">
+                      <span class="sr-only">Step {{ loop.index }} of {{ recipe.total_steps() }}.</span>
+                      {{ step.text }}
+                    </p>
+                    {% if step.wait_minutes > 0 %}
+                    <p class="mt-2 flex items-center gap-1.5 text-[11px] tracking-wide text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                      <span>wait <span class="sr-only">about </span>{{ step.wait_minutes }} min</span>
+                    </p>
+                    {% endif %}
+                  </div>
+                </div>
+              </li>
+              {% endfor %}
+            </ol>
+          </section>
+          {% else %}
+          <section class="mt-8 lg:mt-10" aria-labelledby="method-heading">
+            <h2 id="method-heading" class="mb-3 text-2xl tracking-tight text-[var(--color-ink)]" style="font-family: var(--font-serif);">Method</h2>
+            <p class="rounded-2xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)] p-6 text-sm text-[var(--color-ink-3)]">
+              We don't have the steps for this recipe yet.
+            </p>
+          </section>
+          {% endif %}
+        </div>
+
+        {# ── RIGHT: sticky ingredients + cook-mode promo (lg+ only) ───── #}
+        <aside class="hidden lg:sticky lg:top-24 lg:block lg:self-start">
+          <section class="rounded-2xl border border-[var(--color-line-2)] bg-[var(--color-paper)] p-5 shadow-sm" aria-labelledby="ingredients-heading">
+            <div class="mb-3 flex items-baseline gap-2">
+              <h2 id="ingredients-heading" class="text-2xl tracking-tight text-[var(--color-ink)]" style="font-family: var(--font-serif);">Ingredients</h2>
+              {% if recipe.total_ingredients() > 0 %}
+              <span class="text-xs text-[var(--color-ink-3)]">· for {{ recipe.servings }}</span>
+              {% endif %}
+              <span class="ml-auto"></span>
+              {% if recipe.total_ingredients() > 0 %}
+              <button type="button" class="text-sm font-semibold text-[var(--color-tangerine)] hover:text-[#d75e15] focus:outline-none focus-visible:underline">
+                Adjust
+              </button>
+              {% endif %}
+            </div>
+
+            {% if recipe.total_ingredients() == 0 %}
+              <p class="rounded-xl border border-dashed border-[var(--color-line)] p-4 text-sm text-[var(--color-ink-3)]">
+                We don't have the ingredients for this recipe yet.
+              </p>
+            {% else %}
+              <ul role="list" class="divide-y divide-[var(--color-line-2)]">
+                {% for ing in recipe.ingredients %}
+                <li class="flex items-center gap-3 py-2.5">
+                  <span aria-hidden="true" class="h-5 w-5 shrink-0 rounded-md border-[1.5px] border-[var(--color-line)] bg-[var(--color-cream)]"></span>
+                  <span class="flex-1 text-[14px] text-[var(--color-ink)]">{{ ing.name }}</span>
+                  <span class="text-xs text-[var(--color-ink-3)]" style="font-family: var(--font-mono);">{{ ing.display_qty() }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+
+              <div class="mt-4 border-t border-[var(--color-line-2)] pt-4">
+                <button type="button" class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-cream-2)] px-4 text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-line-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)]">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M3 4h2l2.7 11.3a1 1 0 001 .7h9.6a1 1 0 001-.7L21 8H6"/></svg>
+                  <span>Add to list</span>
+                </button>
+              </div>
+            {% endif %}
+          </section>
+
+          <section class="mt-3 rounded-2xl border border-[var(--color-line-2)] p-5"
+                   style="background: linear-gradient(135deg, var(--color-type-{{ recipe.type_slug() }}-soft), var(--color-cream-2));"
+                   aria-labelledby="cookmode-heading">
+            <p class="text-[10.5px] tracking-widest text-[var(--color-type-{{ recipe.type_slug() }}-ink)] uppercase" style="font-family: var(--font-mono);">Cook this</p>
+            <h2 id="cookmode-heading" class="mt-1 text-xl leading-tight tracking-tight text-[var(--color-ink)]" style="font-family: var(--font-serif);">Step-by-step mode</h2>
+            <p class="mt-1.5 text-sm leading-relaxed text-[var(--color-ink-2)]">
+              Big text, hands-free timers, one step at a time.
+            </p>
+            <button type="button" class="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l14 8-14 8V4z"/></svg>
+              <span>Start cooking</span>
+            </button>
+          </section>
+        </aside>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+{# Mobile-only sticky "Start cooking" CTA. Sits above the bottom nav.       #}
+{# Tablet+ gets the same CTA in the top bar so this is hidden there.        #}
+<div class="pointer-events-none fixed inset-x-0 z-10 px-4 sm:hidden"
+     style="bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.75rem);">
+  <button type="button" class="pointer-events-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-tangerine)] px-4 text-base font-semibold text-white shadow-lg hover:bg-[#d75e15] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-cream)]">
+    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l14 8-14 8V4z"/></svg>
+    <span>Start cooking</span>
+  </button>
+</div>
+
+{% include "_mobile_nav.html" %}
+{% endblock %}

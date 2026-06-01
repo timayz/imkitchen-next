@@ -1,0 +1,57 @@
+{# Side rail — shared between every signed-in page.                          #}
+{#  - hidden on phones (<md), where _mobile_nav.html takes over              #}
+{#  - md (768–1023): collapsed icon-only rail (80px)                          #}
+{#  - lg+ (1024+):   expanded rail with labels + hints + user card (240px)    #}
+{# Consumes:  nav_items: Vec<NavItem>,                                       #}
+{#            user_initial: &str, user_name: &str,                           #}
+{#            user_email: &str, user_premium: bool                            #}
+<aside class="sticky top-0 hidden h-screen w-20 shrink-0 flex-col gap-1 border-r border-[var(--color-line-2)] bg-[var(--color-paper)] px-3 py-6 md:flex lg:w-60">
+  <a href="/" aria-label="imkitchen — home" class="mb-4 flex items-center justify-center gap-2.5 rounded-lg px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] lg:justify-start">
+    <span aria-hidden="true" class="grid h-9 w-9 place-items-center rounded-xl text-lg text-white shadow-sm" style="background: linear-gradient(135deg, var(--color-tangerine), #f5a572); font-family: var(--font-serif);">k</span>
+    <span class="hidden lg:block">
+      <span class="block text-lg leading-none tracking-tight" style="font-family: var(--font-serif);">imkitchen</span>
+      <span class="mt-1 block text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase" style="font-family: var(--font-mono);">Home cooking, planned</span>
+    </span>
+  </a>
+
+  <p aria-hidden="true" class="hidden px-2 pt-2 pb-1 text-[10px] tracking-widest text-[var(--color-ink-3)] uppercase lg:block" style="font-family: var(--font-mono);">Kitchen</p>
+
+  <nav aria-label="Primary">
+    <ul class="flex flex-col gap-1">
+      {% for nav in nav_items %}
+      <li>
+        <a href="{{ nav.href }}"
+           {% if nav.active %}aria-current="page"{% endif %}
+           class="flex items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium {% if nav.active %}bg-[var(--color-tangerine-soft)] text-[var(--color-tangerine-ink)] font-semibold{% else %}text-[var(--color-ink)] hover:bg-[var(--color-cream-2)]{% endif %} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-tangerine)] lg:justify-start">
+          <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg {% if nav.active %}bg-white shadow-sm{% endif %}" aria-hidden="true">
+            {{ nav.icon_svg|safe }}
+          </span>
+          <span class="hidden flex-1 lg:block">
+            <span class="block leading-tight">{{ nav.label }}</span>
+            <span class="mt-0.5 block text-[10.5px] tracking-wide {% if nav.active %}text-[var(--color-tangerine-ink)]/80{% else %}text-[var(--color-ink-3)]{% endif %}" style="font-family: var(--font-mono);">{{ nav.hint }}</span>
+          </span>
+          {# Collapsed rail (md): label is the link's accessible name via sr-only text. #}
+          <span class="sr-only lg:hidden">{{ nav.label }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <div class="mt-auto border-t border-[var(--color-line-2)] pt-3">
+    {# md: just the avatar. lg+: avatar + name/email + premium badge. #}
+    <div class="flex items-center justify-center gap-2.5 px-1 lg:justify-start">
+      <span class="grid h-9 w-9 place-items-center rounded-xl text-base text-white shadow-sm" style="background: linear-gradient(135deg, var(--color-tangerine), #f5a572); font-family: var(--font-serif);" aria-hidden="true">{{ user_initial }}</span>
+      <span class="hidden min-w-0 flex-1 lg:block">
+        <span class="block truncate text-[13px] font-semibold leading-tight">{{ user_name }}</span>
+        <span class="block truncate text-[11px] text-[var(--color-ink-3)]">{{ user_email }}</span>
+      </span>
+      {% if user_premium %}
+      <span class="hidden items-center rounded-full bg-[#ffe4b8] px-2 py-1 text-[var(--color-tangerine-ink)] lg:inline-flex" title="Premium member">
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l4 4 5-7 5 7 4-4-2 12H5z"/></svg>
+        <span class="sr-only">Premium</span>
+      </span>
+      {% endif %}
+    </div>
+  </div>
+</aside>
