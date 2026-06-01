@@ -58,6 +58,7 @@
     --radius-2xl: 1rem;
     --radius-3xl: 1.5rem;
     --drop-shadow-md: 0 3px 3px rgb(0 0 0 / 0.12);
+    --animate-spin: spin 1s linear infinite;
     --default-transition-duration: 150ms;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
@@ -344,6 +345,9 @@
   .mt-8 {
     margin-top: calc(var(--spacing) * 8);
   }
+  .mt-10 {
+    margin-top: calc(var(--spacing) * 10);
+  }
   .mt-auto {
     margin-top: auto;
   }
@@ -421,6 +425,9 @@
   }
   .h-14 {
     height: calc(var(--spacing) * 14);
+  }
+  .h-16 {
+    height: calc(var(--spacing) * 16);
   }
   .h-20 {
     height: calc(var(--spacing) * 20);
@@ -532,6 +539,9 @@
   }
   .transform {
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+  }
+  .animate-spin {
+    animation: var(--animate-spin);
   }
   .cursor-not-allowed {
     cursor: not-allowed;
@@ -712,6 +722,9 @@
   .border-\[var\(--color-line-2\)\] {
     border-color: var(--color-line-2);
   }
+  .border-\[var\(--color-tangerine\)\] {
+    border-color: var(--color-tangerine);
+  }
   .border-\[var\(--color-tangerine\)\]\/40 {
     border-color: var(--color-tangerine);
     @supports (color: color-mix(in lab, red, red)) {
@@ -759,6 +772,9 @@
   }
   .bg-\[var\(--color-tangerine\)\] {
     background-color: var(--color-tangerine);
+  }
+  .bg-\[var\(--color-tangerine-ink\)\] {
+    background-color: var(--color-tangerine-ink);
   }
   .bg-\[var\(--color-tangerine-soft\)\] {
     background-color: var(--color-tangerine-soft);
@@ -1225,6 +1241,13 @@
       }
     }
   }
+  .hover\:bg-\[\#a83218\] {
+    &:hover {
+      @media (hover: hover) {
+        background-color: #a83218;
+      }
+    }
+  }
   .hover\:bg-\[\#d75e15\] {
     &:hover {
       @media (hover: hover) {
@@ -1239,10 +1262,27 @@
       }
     }
   }
+  .hover\:bg-\[var\(--color-ink\)\]\/90 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-ink);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-ink) 90%, transparent);
+        }
+      }
+    }
+  }
   .hover\:bg-\[var\(--color-line-2\)\] {
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-line-2);
+      }
+    }
+  }
+  .hover\:bg-\[var\(--color-tangerine-soft\)\] {
+    &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-tangerine-soft);
       }
     }
   }
@@ -1554,9 +1594,19 @@
       padding-block: calc(var(--spacing) * 10);
     }
   }
+  .sm\:py-12 {
+    @media (width >= 40rem) {
+      padding-block: calc(var(--spacing) * 12);
+    }
+  }
   .sm\:pt-6 {
     @media (width >= 40rem) {
       padding-top: calc(var(--spacing) * 6);
+    }
+  }
+  .sm\:pt-12 {
+    @media (width >= 40rem) {
+      padding-top: calc(var(--spacing) * 12);
     }
   }
   .sm\:pt-16 {
@@ -2004,6 +2054,11 @@
 @property --tw-backdrop-sepia {
   syntax: "*";
   inherits: false;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 @layer properties {
   @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
